@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-maroon: #351016;
+  --color-maroon-deep: #24090E;
+  --color-maroon-soft: #4A1820;
+  --color-gold: #D8AD59;
+  --color-gold-light: #EBD08D;
+  --color-gold-dark: #B08532;
+  --color-saffron: #E99A32;
+  --color-saffron-deep: #C47616;
+  --color-cream: #F8F0E3;
+  --color-cream-light: #FDF9F2;
+  --color-cream-deep: #EFE3CE;
+  --color-brown: #542D24;
+  --color-brown-dark: #2E140F;
+
+  --font-display: "Cinzel", "Noto Serif Devanagari", "Noto Serif Bengali", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "Noto Sans Devanagari", "Noto Sans Bengali", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+    background-color: var(--color-cream);
+    color: var(--color-brown-dark);
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #E99A32;
+    outline-offset: 2px;
+  }
+}
+
+@keyframes slow-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slow-spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-mandala-slow {
+  animation: slow-spin 140s linear infinite;
+}
+
+.animate-mandala-reverse {
+  animation: slow-spin-reverse 180s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-mandala-slow,
+  .animate-mandala-reverse {
+    animation: none;
+  }
+}

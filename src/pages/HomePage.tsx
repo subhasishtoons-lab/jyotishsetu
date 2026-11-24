@@ -1,0 +1,534 @@
+import React, { useState } from 'react';
+import {
+  ArrowRight,
+  Compass,
+  Sun,
+  Calendar,
+  HeartHandshake,
+  Hash,
+  Orbit,
+  Flame,
+  Sparkles,
+  Sunrise,
+  Sunset,
+  Clock,
+  Check,
+} from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { validateEmail } from '../utils/validation';
+import type { ToolId } from '../i18n/types';
+import { Link } from '../components/Link';
+import { SectionHeading } from '../components/SectionHeading';
+import { VedicMandalaArtwork } from '../components/artwork/VedicMandalaArtwork';
+import { NavagrahaDiagram } from '../components/artwork/NavagrahaDiagram';
+import { ZodiacEmblem } from '../components/artwork/ZodiacEmblems';
+import { BlogEditorialArt } from '../components/artwork/BlogEditorialArt';
+
+const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>> = {
+  'free-kundli': Compass,
+  'daily-horoscope': Sun,
+  'hindu-panchang': Calendar,
+  'kundli-matching': HeartHandshake,
+  numerology: Hash,
+  'sade-sati': Orbit,
+  'mangal-dosha': Flame,
+  'nakshatra-finder': Sparkles,
+};
+
+export function HomePage() {
+  const { t } = useLanguage();
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [notifyError, setNotifyError] = useState<string | null>(null);
+  const [notifySubmitted, setNotifySubmitted] = useState(false);
+
+  const handlePremiumNotify = (e: React.FormEvent) => {
+    e.preventDefault();
+    const errKey = validateEmail(notifyEmail);
+    if (errKey) {
+      setNotifyError(t.validation[errKey]);
+      setNotifySubmitted(false);
+      return;
+    }
+    setNotifyError(null);
+    setNotifySubmitted(true);
+    setNotifyEmail('');
+  };
+
+  const pFields = t.panchang.data.fields;
+  const panchangEntries = [
+    { key: 'date', ...pFields.date, isTime: false, isCaution: false },
+    { key: 'tithi', ...pFields.tithi, isTime: false, isCaution: false },
+    { key: 'nakshatra', ...pFields.nakshatra, isTime: false, isCaution: false },
+    { key: 'yoga', ...pFields.yoga, isTime: false, isCaution: false },
+    { key: 'karana', ...pFields.karana, isTime: false, isCaution: false },
+    { key: 'sunrise', ...pFields.sunrise, isTime: true, isCaution: false },
+    { key: 'sunset', ...pFields.sunset, isTime: true, isCaution: false },
+    { key: 'rahuKaal', ...pFields.rahuKaal, isTime: true, isCaution: true },
+  ];
+
+  return (
+    <div>
+      {/* 1. HERO SECTION */}
+      <section className="relative overflow-hidden bg-[#351016] text-[#F8F0E3] border-b border-[#D8AD59]/30">
+        {/* Subtle radial atmospheric depth */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_45%,rgba(233,154,50,0.16),rgba(53,16,22,0)_62%)]"
+        />
+
+        {/* Decorative Mandala Backdrop on Mobile/Tablet (subtle) */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] opacity-20 lg:hidden"
+        >
+          <VedicMandalaArtwork className="w-full h-full" />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-12 lg:gap-10">
+            {/* Hero Editorial Copy */}
+            <div className="lg:col-span-7 max-w-2xl">
+              <p className="text-xs sm:text-[13px] font-medium tracking-[0.14em] text-[#EBD08D]">
+                {t.hero.kicker}
+              </p>
+
+              <h1 className="mt-4 font-display text-[2.35rem] sm:text-5xl lg:text-[3.5rem] font-semibold leading-[1.12] tracking-tight text-[#F8F0E3] [text-wrap:balance]">
+                {t.hero.headline}
+              </h1>
+
+              <p className="mt-5 text-base sm:text-lg leading-relaxed text-[#F8F0E3]/85 max-w-xl">
+                {t.hero.description}
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  to="/kundli"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-all whitespace-nowrap shadow-md"
+                >
+                  <span>{t.hero.primaryCta}</span>
+                  <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                </Link>
+
+                <Link
+                  to="/tools"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-md border border-[#D8AD59]/60 bg-[#24090E]/40 text-[#F8F0E3] text-sm font-medium tracking-wide hover:bg-[#4A1820] hover:border-[#D8AD59] transition-colors whitespace-nowrap"
+                >
+                  <span>{t.hero.secondaryCta}</span>
+                </Link>
+              </div>
+
+              {/* Clean unboxed heritage markers */}
+              <div className="mt-10 pt-6 border-t border-[#D8AD59]/20 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-[13px] text-[#EBD08D]/85">
+                {t.hero.traditionMarkers.map((marker, idx) => (
+                  <React.Fragment key={marker}>
+                    {idx > 0 && (
+                      <span className="text-[#D8AD59]/45" aria-hidden="true">
+                        ◆
+                      </span>
+                    )}
+                    <span>{marker}</span>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+
+            {/* Hero Focal Celestial Mandala Composition */}
+            <div className="hidden lg:flex lg:col-span-5 justify-center items-center">
+              <div className="relative w-[440px] h-[440px] xl:w-[480px] xl:h-[480px]">
+                <VedicMandalaArtwork className="w-full h-full drop-shadow-[0_0_40px_rgba(216,173,89,0.16)]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. QUICK ASTROLOGY TOOLS */}
+      <section id="astrology-tools" className="py-16 sm:py-20 bg-[#F8F0E3]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <SectionHeading
+              kicker={t.quickTools.kicker}
+              title={t.quickTools.title}
+              subtitle={t.quickTools.subtitle}
+              align="left"
+            />
+            <Link
+              to="/tools"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#542D24] hover:text-[#351016] border-b border-[#D8AD59] pb-1 whitespace-nowrap shrink-0 self-start md:self-auto transition-colors"
+            >
+              <span>{t.quickTools.viewAllCta}</span>
+              <ArrowRight className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {t.quickTools.items.map((tool) => {
+              const Icon = TOOL_ICON_MAP[tool.id];
+              const isPreview = tool.status === 'preview';
+              return (
+                <Link
+                  key={tool.id}
+                  to={tool.route}
+                  className="group flex flex-col justify-between p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:-translate-y-0.5 transition-all duration-150"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="w-10 h-10 rounded-md bg-[#351016] text-[#EBD08D] flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5" aria-hidden="true" />
+                      </div>
+                      <span
+                        className={`text-[11px] font-medium tracking-wide ${
+                          isPreview ? 'text-[#7C4710]' : 'text-[#542D24]/70'
+                        }`}
+                      >
+                        {isPreview ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
+                      </span>
+                    </div>
+
+                    <p className="mt-4 text-xs text-[#8C5320] font-medium">{tool.subtitle}</p>
+                    <h3 className="mt-1 font-display text-lg font-semibold text-[#351016] group-hover:text-[#7C3A12] transition-colors">
+                      {tool.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-[#542D24] leading-relaxed">
+                      {tool.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016]">
+                    <span>{t.quickTools.openTool}</span>
+                    <ArrowRight
+                      className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 3. TODAY'S PANCHANG */}
+      <section className="py-16 sm:py-20 bg-[#EFE3CE]/70 border-y border-[#D8AD59]/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <SectionHeading
+              kicker={t.panchang.kicker}
+              title={t.panchang.title}
+              subtitle={t.panchang.subtitle}
+              align="left"
+            />
+            <Link
+              to="/panchang"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors whitespace-nowrap shrink-0 self-start md:self-auto"
+            >
+              <span>{t.panchang.fullPanchangCta}</span>
+              <ArrowRight className="w-4 h-4 text-[#D8AD59]" aria-hidden="true" />
+            </Link>
+          </div>
+
+          {/* Clearly Labelled Demonstration Metadata Bar */}
+          <div className="mt-8 p-4 sm:px-6 rounded-t-lg bg-[#351016] text-[#F8F0E3] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm">
+              <span className="font-semibold text-[#E99A32]">
+                {t.panchang.data.demoNoticeTitle}
+              </span>
+              <span className="text-[#D8AD59]/50" aria-hidden="true">
+                ·
+              </span>
+              <span className="text-[#F8F0E3]/90">{t.panchang.data.locationValue}</span>
+            </div>
+            <div className="text-xs text-[#EBD08D]">
+              {t.panchang.data.samvatLabel}: {t.panchang.data.samvatValue}
+            </div>
+          </div>
+
+          {/* 8 Structured Panchang Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#D8AD59]/30 border-x border-b border-[#D8AD59]/40 rounded-b-lg overflow-hidden">
+            {panchangEntries.map((item) => (
+              <div
+                key={item.key}
+                className={`p-5 sm:p-6 ${
+                  item.isCaution ? 'bg-[#F5E9DB]' : 'bg-[#FDF9F2]'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium tracking-wider text-[#8C5320]">
+                    {item.label}
+                  </span>
+                  {item.key === 'sunrise' && (
+                    <Sunrise className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+                  )}
+                  {item.key === 'sunset' && (
+                    <Sunset className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+                  )}
+                  {item.key === 'rahuKaal' && (
+                    <Clock className="w-4 h-4 text-[#7A2029]" aria-hidden="true" />
+                  )}
+                </div>
+
+                <p
+                  className={`mt-2 text-lg font-semibold ${
+                    item.isTime ? 'font-mono tabular-nums' : 'font-display'
+                  } ${item.isCaution ? 'text-[#7A2029]' : 'text-[#351016]'}`}
+                >
+                  {item.value}
+                </p>
+
+                <p className="mt-1 text-xs text-[#542D24]/85">{item.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-3.5 text-xs text-[#542D24]/85">{t.panchang.data.demoNoticeBody}</p>
+        </div>
+      </section>
+
+      {/* 4. DAILY HOROSCOPE — ALL 12 ZODIAC SIGNS */}
+      <section className="py-16 sm:py-20 bg-[#F8F0E3]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <SectionHeading
+            kicker={t.horoscope.kicker}
+            title={t.horoscope.title}
+            subtitle={t.horoscope.subtitle}
+            align="center"
+          />
+
+          <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            {t.horoscope.signs.map((sign) => (
+              <Link
+                key={sign.id}
+                to={`/horoscope/${sign.id}`}
+                className="group flex flex-col items-center text-center p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:bg-white transition-all duration-150"
+              >
+                <div className="w-14 h-14 rounded-full bg-[#351016] text-[#EBD08D] flex items-center justify-center group-hover:scale-105 transition-transform duration-150">
+                  <ZodiacEmblem sign={sign.id} className="w-10 h-10" />
+                </div>
+                <h3 className="mt-3.5 font-display text-base font-semibold text-[#351016]">
+                  {sign.name}
+                </h3>
+                <p className="mt-0.5 text-[11px] text-[#8C5320] font-medium">{sign.vedicName}</p>
+                <p className="mt-1.5 text-[11px] text-[#542D24]/80">{sign.dates}</p>
+                <span className="mt-3 text-xs font-semibold text-[#351016] group-hover:text-[#C47616] transition-colors">
+                  {t.horoscope.readSignCta} →
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <Link
+              to="/horoscope"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[#351016] hover:text-[#7C3A12] border-b border-[#D8AD59] pb-1 transition-colors"
+            >
+              <span>{t.horoscope.viewFullCta}</span>
+              <ArrowRight className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. WHY CHOOSE JYOTISHSETU */}
+      <section className="py-16 sm:py-20 bg-[#FDF9F2] border-y border-[#D8AD59]/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            {/* Navagraha Traditional Illustration Column */}
+            <div className="lg:col-span-5">
+              <div className="max-w-md mx-auto">
+                <NavagrahaDiagram className="w-full h-auto rounded-xl shadow-lg" />
+                <p className="mt-3 text-center text-xs text-[#542D24]/80 font-display tracking-wide">
+                  {t.brand.name} · {t.brand.tagline}
+                </p>
+              </div>
+            </div>
+
+            {/* Five Pillars Editorial List */}
+            <div className="lg:col-span-7">
+              <SectionHeading
+                kicker={t.whyChoose.kicker}
+                title={t.whyChoose.title}
+                subtitle={t.whyChoose.subtitle}
+                align="left"
+              />
+
+              <ol className="mt-8 divide-y divide-[#D8AD59]/25">
+                {t.whyChoose.pillars.map((pillar) => (
+                  <li key={pillar.number} className="py-4 first:pt-0 last:pb-0 flex gap-5">
+                    <span className="font-mono tabular-nums text-sm font-medium text-[#B08532] pt-0.5 shrink-0">
+                      {pillar.number}.
+                    </span>
+                    <div>
+                      <h3 className="font-display text-lg font-semibold text-[#351016]">
+                        {pillar.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-[#542D24] leading-relaxed">
+                        {pillar.description}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. PREMIUM SECTION (COMING SOON, NO PAYMENTS YET) */}
+      <section className="relative overflow-hidden py-16 sm:py-20 bg-[#351016] text-[#F8F0E3]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-32 top-1/2 -translate-y-1/2 w-[420px] h-[420px] opacity-[0.09]"
+        >
+          <VedicMandalaArtwork className="w-full h-full" />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+            {/* Premium Overview & Notify Form */}
+            <div className="lg:col-span-5">
+              <p className="text-xs font-medium tracking-[0.14em] text-[#E99A32]">
+                {t.premium.statusLabel}
+              </p>
+              <h2 className="mt-3 font-display text-3xl sm:text-4xl font-semibold text-[#F8F0E3] leading-[1.18] [text-wrap:balance]">
+                {t.premium.title}
+              </h2>
+              <p className="mt-4 text-[15px] text-[#F8F0E3]/82 leading-relaxed">
+                {t.premium.subtitle}
+              </p>
+              <p className="mt-3 text-xs text-[#EBD08D]/85 leading-relaxed">
+                {t.premium.noPaymentNote}
+              </p>
+
+              {/* Early Access Interest Form (Local preview only, no backend/payments) */}
+              <div className="mt-7 pt-6 border-t border-[#D8AD59]/25">
+                <p className="text-sm font-medium text-[#EBD08D]">{t.premium.notifyTitle}</p>
+                {notifySubmitted ? (
+                  <div className="mt-3 p-3.5 rounded-md bg-[#24090E] border border-[#D8AD59]/40 text-sm text-[#F5DC9B] flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-[#E99A32] shrink-0 mt-0.5" aria-hidden="true" />
+                    <span>{t.premium.notifySuccess}</span>
+                  </div>
+                ) : (
+                  <form onSubmit={handlePremiumNotify} noValidate className="mt-3">
+                    <div className="flex flex-col sm:flex-row gap-2.5">
+                      <label htmlFor="premium-notify-email" className="sr-only">
+                        {t.premium.notifyTitle}
+                      </label>
+                      <input
+                        id="premium-notify-email"
+                        type="email"
+                        value={notifyEmail}
+                        onChange={(e) => {
+                          setNotifyEmail(e.target.value);
+                          if (notifyError) setNotifyError(null);
+                        }}
+                        placeholder={t.premium.notifyPlaceholder}
+                        className="flex-1 h-11 px-3.5 rounded-md bg-[#24090E] border border-[#D8AD59]/40 text-sm text-[#F8F0E3] placeholder:text-[#F8F0E3]/45"
+                      />
+                      <button
+                        type="submit"
+                        className="h-11 px-5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold hover:brightness-105 transition-all whitespace-nowrap shrink-0 cursor-pointer"
+                      >
+                        {t.premium.notifyButton}
+                      </button>
+                    </div>
+                    {notifyError && (
+                      <p role="alert" className="mt-2 text-xs text-[#F5B971]">
+                        {notifyError}
+                      </p>
+                    )}
+                  </form>
+                )}
+              </div>
+            </div>
+
+            {/* 4 Premium Offerings Grid */}
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {t.premium.features.map((feat, idx) => (
+                <div
+                  key={feat.title}
+                  className="p-6 rounded-lg bg-[#2A0B11] border border-[#D8AD59]/30"
+                >
+                  <div className="flex items-center justify-between text-xs text-[#D8AD59]">
+                    <span className="font-mono tabular-nums">0{idx + 1}</span>
+                    <span>{t.quickTools.statusComingSoon}</span>
+                  </div>
+                  <h3 className="mt-3 font-display text-lg font-semibold text-[#F8F0E3]">
+                    {feat.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-[#F8F0E3]/78 leading-relaxed">
+                    {feat.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. BLOG SECTION */}
+      <section className="py-16 sm:py-20 bg-[#F8F0E3]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <SectionHeading
+              kicker={t.blog.kicker}
+              title={t.blog.title}
+              subtitle={t.blog.subtitle}
+              align="left"
+            />
+            <Link
+              to="/blog"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#542D24] hover:text-[#351016] border-b border-[#D8AD59] pb-1 whitespace-nowrap shrink-0 self-start md:self-auto transition-colors"
+            >
+              <span>{t.blog.viewAllArticlesCta}</span>
+              <ArrowRight className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+            </Link>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {t.blog.articles.map((article) => (
+              <article
+                key={article.slug}
+                className="group flex flex-col rounded-lg overflow-hidden bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] transition-colors"
+              >
+                <Link to={`/blog/${article.slug}`} className="block aspect-[3/2] overflow-hidden">
+                  <BlogEditorialArt
+                    artworkId={article.artworkId}
+                    className="w-full h-full transition-transform duration-300 group-hover:scale-[1.03]"
+                  />
+                </Link>
+
+                <div className="p-5 flex-1 flex flex-col justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#8C5320]">
+                      <span className="font-medium">{article.categoryLabel}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{article.readTime}</span>
+                    </div>
+
+                    <h3 className="mt-2 font-display text-lg font-semibold text-[#351016] leading-snug group-hover:text-[#7C3A12] transition-colors">
+                      <Link to={`/blog/${article.slug}`}>{article.title}</Link>
+                    </h3>
+
+                    <p className="mt-2 text-sm text-[#542D24] leading-relaxed line-clamp-3">
+                      {article.excerpt}
+                    </p>
+                  </div>
+
+                  <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs">
+                    <span className="text-[#542D24]/75">{article.date}</span>
+                    <Link
+                      to={`/blog/${article.slug}`}
+                      className="font-semibold text-[#351016] hover:text-[#C47616] transition-colors"
+                    >
+                      {t.blog.readArticleCta} →
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
