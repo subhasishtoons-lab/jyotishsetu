@@ -1,5 +1,7 @@
 import type { ZodiacId } from '../i18n/types';
 
+export const BASE_PATH = '/jyotishsetu';
+
 export type RoutePage =
   | { kind: 'home' }
   | { kind: 'kundli' }
@@ -36,14 +38,63 @@ const VALID_TOOL_SLUGS: ReadonlySet<string> = new Set([
   'nakshatra-finder',
 ]);
 
-export function normalizePathname(rawPath: string): string {
+/**
+ * Strips query/hash, collapses redundant slashes, removes the GitHub Pages
+ * `/jyotishsetu` project prefix if present, and returns the canonical
+ * app-relative path (`/` for homepage, `/kundli`, `/horoscope/simha`, etc.).
+ */
+export function stripBasePath(rawPath: string): string {
   const withoutQuery = rawPath.split('?')[0]?.split('#')[0] ?? '/';
-  const cleaned = withoutQuery.replace(/\/+$/, '');
-  return cleaned === '' ? '/' : cleaned.startsWith('/') ? cleaned : `/${cleaned}`;
+  const collapsed = withoutQuery.replace(/\/{2,}/g, '/');
+  const ensuredLeading = collapsed.startsWith('/') ? collapsed : `/${collapsed}`;
+
+  let stripped = ensuredLeading;
+  if (stripped === BASE_PATH || stripped === `${BASE_PATH}/`) {
+    stripped = '/';
+  } else if (stripped.startsWith(`${BASE_PATH}/`)) {
+    stripped = stripped.slice(BASE_PATH.length);
+  }
+
+  const trimmed = stripped.replace(/\/+$/, '');
+  return trimmed === '' ? '/' : trimmed;
+}
+
+export function normalizePathname(rawPath: string): string {
+  return stripBasePath(rawPath);
+}
+
+/**
+ * Converts any internal route (app-relative like `/kundli` or already prefixed
+ * like `/jyotishsetu/kundli`) into the canonical GitHub Pages URL:
+ * - Homepage -> `/jyotishsetu/`
+ * - Subpages -> `/jyotishsetu/<subpath>`
+ */
+export function withBasePath(appPath: string): string {
+  const relative = stripBasePath(appPath);
+  return relative === '/' ? `${BASE_PATH}/` : `${BASE_PATH}${relative}`;
+}
+
+/**
+ * Decodes a GitHub Pages 404.html fallback redirect (`?p=/kundli&q=...`)
+ * into a clean `/jyotishsetu/...` URL path + query string.
+ */
+export function resolveGitHubPagesRedirect(search: string, hash = ''): string | null {
+  if (!search || !search.includes('p=')) return null;
+  try {
+    const params = new URLSearchParams(search);
+    const rawPath = params.get('p');
+    if (!rawPath) return null;
+    const targetPath = withBasePath(rawPath);
+    const rawQuery = params.get('q');
+    const queryPart = rawQuery ? `?${rawQuery}` : '';
+    return `${targetPath}${queryPart}${hash}`;
+  } catch {
+    return null;
+  }
 }
 
 export function parseRoute(pathname: string): RoutePage {
-  const path = normalizePathname(pathname);
+  const path = stripBasePath(pathname);
   if (path === '/') return { kind: 'home' };
   if (path === '/kundli') return { kind: 'kundli' };
   if (path === '/panchang') return { kind: 'panchang' };

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JyotishSetu – Redirecting…</title>
+    <script>
+      // GitHub Pages SPA deep-link handler for project base path /jyotishsetu/
+      // Redirects direct page loads (e.g. /jyotishsetu/kundli) to /jyotishsetu/?p=/kundli
+      // so index.html restores the exact client-side route cleanly.
+      (function () {
+        var basePath = '/jyotishsetu';
+        var l = window.location;
+        var pathname = l.pathname || '/';
+        var subPath = '/';
+
+        if (pathname === basePath || pathname === basePath + '/') {
+          subPath = '/';
+        } else if (pathname.indexOf(basePath + '/') === 0) {
+          subPath = pathname.slice(basePath.length);
+        } else {
+          subPath = pathname;
+        }
+
+        var params = '?p=' + encodeURIComponent(subPath);
+        if (l.search && l.search.length > 1) {
+          params += '&q=' + encodeURIComponent(l.search.slice(1));
+        }
+        l.replace(l.protocol + '//' + l.host + basePath + '/' + params + (l.hash || ''));
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

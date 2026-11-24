@@ -9,7 +9,15 @@ import {
   getDictionary,
   type StorageLike,
 } from '../i18n/index';
-import { parseRoute, normalizePathname, getActiveNavKey } from './routing';
+import {
+  BASE_PATH,
+  parseRoute,
+  normalizePathname,
+  stripBasePath,
+  withBasePath,
+  resolveGitHubPagesRedirect,
+  getActiveNavKey,
+} from './routing';
 import { validateEmail, validateContactForm } from './validation';
 
 function createMemoryStorage(): StorageLike {
@@ -91,34 +99,74 @@ test('language preference saves and loads from storage with safe fallback', () =
   assert.equal(loadSavedLanguage(storage), 'en');
 });
 
-test('SPA route parser handles core pages, nested zodiac/blog/tool routes, and unknown fallbacks', () => {
+test('GitHub Pages /jyotishsetu/ base path helpers produce canonical URLs and handle direct redirects', () => {
+  assert.equal(BASE_PATH, '/jyotishsetu');
+
+  assert.equal(withBasePath('/'), '/jyotishsetu/');
+  assert.equal(withBasePath('/jyotishsetu'), '/jyotishsetu/');
+  assert.equal(withBasePath('/jyotishsetu/'), '/jyotishsetu/');
+  assert.equal(withBasePath('/kundli'), '/jyotishsetu/kundli');
+  assert.equal(withBasePath('/jyotishsetu/kundli'), '/jyotishsetu/kundli');
+  assert.equal(withBasePath('/horoscope'), '/jyotishsetu/horoscope');
+  assert.equal(withBasePath('/horoscope/simha'), '/jyotishsetu/horoscope/simha');
+  assert.equal(withBasePath('/panchang'), '/jyotishsetu/panchang');
+  assert.equal(withBasePath('/matching'), '/jyotishsetu/matching');
+  assert.equal(withBasePath('/numerology'), '/jyotishsetu/numerology');
+  assert.equal(withBasePath('/tools'), '/jyotishsetu/tools');
+  assert.equal(withBasePath('/tools/sade-sati'), '/jyotishsetu/tools/sade-sati');
+  assert.equal(withBasePath('/blog'), '/jyotishsetu/blog');
+  assert.equal(withBasePath('/about'), '/jyotishsetu/about');
+  assert.equal(withBasePath('/contact'), '/jyotishsetu/contact');
+  assert.equal(withBasePath('/privacy'), '/jyotishsetu/privacy');
+  assert.equal(withBasePath('/terms'), '/jyotishsetu/terms');
+  assert.equal(withBasePath('/disclaimer'), '/jyotishsetu/disclaimer');
+
+  assert.equal(stripBasePath('/jyotishsetu/'), '/');
+  assert.equal(stripBasePath('/jyotishsetu'), '/');
+  assert.equal(stripBasePath('/jyotishsetu/kundli/'), '/kundli');
+  assert.equal(stripBasePath('/jyotishsetu/horoscope/simha'), '/horoscope/simha');
+
+  assert.equal(
+    resolveGitHubPagesRedirect('?p=%2Fkundli'),
+    '/jyotishsetu/kundli',
+  );
+  assert.equal(
+    resolveGitHubPagesRedirect('?p=%2Fhoroscope%2Fsimha&q=ref%3Dshare', '#details'),
+    '/jyotishsetu/horoscope/simha?ref=share#details',
+  );
+  assert.equal(resolveGitHubPagesRedirect('?foo=bar'), null);
+});
+
+test('SPA route parser handles /jyotishsetu/ prefixed and relative routes across all pages', () => {
   assert.equal(normalizePathname('/kundli/'), '/kundli');
   assert.equal(normalizePathname('/'), '/');
 
-  assert.deepEqual(parseRoute('/'), { kind: 'home' });
-  assert.deepEqual(parseRoute('/kundli'), { kind: 'kundli' });
-  assert.deepEqual(parseRoute('/panchang'), { kind: 'panchang' });
-  assert.deepEqual(parseRoute('/matching'), { kind: 'matching' });
-  assert.deepEqual(parseRoute('/numerology'), { kind: 'numerology' });
-  assert.deepEqual(parseRoute('/horoscope'), { kind: 'horoscope' });
-  assert.deepEqual(parseRoute('/horoscope/simha'), { kind: 'horoscope', sign: 'simha' });
-  assert.deepEqual(parseRoute('/horoscope/unknown-sign'), { kind: 'horoscope' });
-  assert.deepEqual(parseRoute('/tools/sade-sati'), { kind: 'tools', toolSlug: 'sade-sati' });
-  assert.deepEqual(parseRoute('/tools/mangal-dosha'), { kind: 'tools', toolSlug: 'mangal-dosha' });
-  assert.deepEqual(parseRoute('/tools/nakshatra-finder'), {
+  assert.deepEqual(parseRoute('/jyotishsetu/'), { kind: 'home' });
+  assert.deepEqual(parseRoute('/jyotishsetu/kundli'), { kind: 'kundli' });
+  assert.deepEqual(parseRoute('/jyotishsetu/panchang'), { kind: 'panchang' });
+  assert.deepEqual(parseRoute('/jyotishsetu/matching'), { kind: 'matching' });
+  assert.deepEqual(parseRoute('/jyotishsetu/numerology'), { kind: 'numerology' });
+  assert.deepEqual(parseRoute('/jyotishsetu/horoscope'), { kind: 'horoscope' });
+  assert.deepEqual(parseRoute('/jyotishsetu/horoscope/simha'), { kind: 'horoscope', sign: 'simha' });
+  assert.deepEqual(parseRoute('/jyotishsetu/horoscope/unknown-sign'), { kind: 'horoscope' });
+  assert.deepEqual(parseRoute('/jyotishsetu/tools'), { kind: 'tools' });
+  assert.deepEqual(parseRoute('/jyotishsetu/tools/sade-sati'), { kind: 'tools', toolSlug: 'sade-sati' });
+  assert.deepEqual(parseRoute('/jyotishsetu/tools/mangal-dosha'), { kind: 'tools', toolSlug: 'mangal-dosha' });
+  assert.deepEqual(parseRoute('/jyotishsetu/tools/nakshatra-finder'), {
     kind: 'tools',
     toolSlug: 'nakshatra-finder',
   });
-  assert.deepEqual(parseRoute('/blog/twenty-seven-nakshatras-lunar-mansions'), {
+  assert.deepEqual(parseRoute('/jyotishsetu/blog'), { kind: 'blog' });
+  assert.deepEqual(parseRoute('/jyotishsetu/blog/twenty-seven-nakshatras-lunar-mansions'), {
     kind: 'blog',
     slug: 'twenty-seven-nakshatras-lunar-mansions',
   });
-  assert.deepEqual(parseRoute('/about'), { kind: 'about' });
-  assert.deepEqual(parseRoute('/contact'), { kind: 'contact' });
-  assert.deepEqual(parseRoute('/privacy'), { kind: 'privacy' });
-  assert.deepEqual(parseRoute('/terms'), { kind: 'terms' });
-  assert.deepEqual(parseRoute('/disclaimer'), { kind: 'disclaimer' });
-  assert.deepEqual(parseRoute('/nonexistent-page'), { kind: 'home' });
+  assert.deepEqual(parseRoute('/jyotishsetu/about'), { kind: 'about' });
+  assert.deepEqual(parseRoute('/jyotishsetu/contact'), { kind: 'contact' });
+  assert.deepEqual(parseRoute('/jyotishsetu/privacy'), { kind: 'privacy' });
+  assert.deepEqual(parseRoute('/jyotishsetu/terms'), { kind: 'terms' });
+  assert.deepEqual(parseRoute('/jyotishsetu/disclaimer'), { kind: 'disclaimer' });
+  assert.deepEqual(parseRoute('/jyotishsetu/nonexistent-page'), { kind: 'home' });
 
   assert.equal(getActiveNavKey({ kind: 'tools', toolSlug: 'sade-sati' }), 'tools');
   assert.equal(getActiveNavKey({ kind: 'horoscope', sign: 'mesha' }), 'horoscope');

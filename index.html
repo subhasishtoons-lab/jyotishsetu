@@ -41,6 +41,31 @@
         "inLanguage": ["en", "hi", "as"]
       }
     </script>
+    <script>
+      // Restore clean /jyotishsetu/... URLs after GitHub Pages 404.html SPA redirect
+      (function () {
+        var basePath = '/jyotishsetu';
+        var search = window.location.search;
+        if (!search || search.indexOf('p=') === -1) return;
+        try {
+          var params = new URLSearchParams(search);
+          var rawPath = params.get('p');
+          if (!rawPath) return;
+          var cleanPath = rawPath.charAt(0) === '/' ? rawPath : '/' + rawPath;
+          if (cleanPath === basePath || cleanPath === basePath + '/') {
+            cleanPath = '/';
+          } else if (cleanPath.indexOf(basePath + '/') === 0) {
+            cleanPath = cleanPath.slice(basePath.length);
+          }
+          var targetPath = cleanPath === '/' ? basePath + '/' : basePath + cleanPath.replace(/\/+$/, '');
+          var rawQuery = params.get('q');
+          var queryPart = rawQuery ? '?' + rawQuery : '';
+          window.history.replaceState(null, '', targetPath + queryPart + (window.location.hash || ''));
+        } catch (e) {
+          // Ignore malformed redirect queries gracefully
+        }
+      })();
+    </script>
   </head>
   <body class="bg-[#F8F0E3] text-[#3A1B16] antialiased selection:bg-[#D8AD59]/30 selection:text-[#351016]">
     <div id="root"></div>

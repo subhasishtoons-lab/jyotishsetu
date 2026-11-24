@@ -1,5 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { parseRoute, normalizePathname, type RoutePage } from '../utils/routing';
+import {
+  parseRoute,
+  stripBasePath,
+  withBasePath,
+  resolveGitHubPagesRedirect,
+  type RoutePage,
+} from '../utils/routing';
 import { useLanguage } from './LanguageContext';
 
 interface RouterContextValue {
@@ -10,26 +16,44 @@ interface RouterContextValue {
 
 const RouterContext = createContext<RouterContextValue | null>(null);
 
+function getInitialAppPath(): string {
+  if (typeof window === 'undefined') return '/';
+  const restored = resolveGitHubPagesRedirect(window.location.search, window.location.hash);
+  if (restored) {
+    window.history.replaceState({}, '', restored);
+    return stripBasePath(restored);
+  }
+  const appPath = stripBasePath(window.location.pathname);
+  const canonicalUrl = withBasePath(appPath);
+  if (window.location.pathname !== canonicalUrl) {
+    window.history.replaceState(
+      {},
+      '',
+      `${canonicalUrl}${window.location.search}${window.location.hash}`,
+    );
+  }
+  return appPath;
+}
+
 export function RouterProvider({ children }: { children: React.ReactNode }) {
   const { t } = useLanguage();
-  const [pathname, setPathname] = useState<string>(() =>
-    typeof window !== 'undefined' ? normalizePathname(window.location.pathname) : '/',
-  );
+  const [pathname, setPathname] = useState<string>(() => getInitialAppPath());
 
   const navigate = useCallback((to: string) => {
-    const nextPath = normalizePathname(to);
+    const appPath = stripBasePath(to);
+    const fullUrl = withBasePath(appPath);
     if (typeof window !== 'undefined') {
-      if (normalizePathname(window.location.pathname) !== nextPath) {
-        window.history.pushState({}, '', nextPath);
+      if (window.location.pathname !== fullUrl) {
+        window.history.pushState({}, '', fullUrl);
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    setPathname(nextPath);
+    setPathname(appPath);
   }, []);
 
   useEffect(() => {
     const handlePopState = () => {
-      setPathname(normalizePathname(window.location.pathname));
+      setPathname(stripBasePath(window.location.pathname));
       window.scrollTo({ top: 0, behavior: 'auto' });
     };
     window.addEventListener('popstate', handlePopState);

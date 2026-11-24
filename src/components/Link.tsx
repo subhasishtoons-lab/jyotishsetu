@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRouter } from '../context/RouterContext';
+import { withBasePath } from '../utils/routing';
 
 interface LinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   to: string;
@@ -8,6 +9,7 @@ interface LinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
 
 export function Link({ to, onClick, children, ...rest }: LinkProps) {
   const { navigate } = useRouter();
+  const resolvedHref = withBasePath(to);
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
     if (
@@ -22,11 +24,11 @@ export function Link({ to, onClick, children, ...rest }: LinkProps) {
     }
     event.preventDefault();
     onClick?.(event);
-    navigate(to);
+    navigate(resolvedHref);
   };
 
   return (
-    <a href={to} onClick={handleClick} {...rest}>
+    <a href={resolvedHref} onClick={handleClick} {...rest}>
       {children}
     </a>
   );

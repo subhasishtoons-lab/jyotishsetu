@@ -69,7 +69,7 @@ export function Header() {
         {/* Zone 2: Desktop Navigation (8 primary links, clean single-line typography) */}
         <nav
           aria-label="Primary Navigation"
-          className="hidden xl:flex items-center gap-4 2xl:gap-6 min-w-0"
+          className="hidden xl:flex items-center gap-3.5 2xl:gap-6 min-w-0"
         >
           {navItems.map((item) => {
             const isActive = activeNav === item.key;
@@ -78,7 +78,7 @@ export function Header() {
                 key={item.key}
                 to={item.to}
                 aria-current={isActive ? 'page' : undefined}
-                className={`relative py-1.5 text-[13px] font-medium whitespace-nowrap shrink-0 transition-colors duration-150 ${
+                className={`relative py-1.5 text-[12.5px] 2xl:text-[13px] font-medium whitespace-nowrap shrink-0 transition-colors duration-150 ${
                   isActive
                     ? 'text-[#EBD08D]'
                     : 'text-[#F8F0E3]/85 hover:text-[#EBD08D]'
@@ -154,12 +154,12 @@ export function Header() {
           {/* Prominent Generate Free Kundli Button (Desktop & Tablet) */}
           <Link
             to="/kundli"
-            className="hidden sm:inline-flex items-center justify-center h-9 px-4 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-xs font-semibold tracking-wide hover:brightness-105 transition-all whitespace-nowrap shrink-0 shadow-sm"
+            className="hidden sm:inline-flex items-center justify-center h-9 px-3 xl:px-4 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-xs font-semibold tracking-wide hover:brightness-105 transition-all whitespace-nowrap shrink-0 shadow-sm"
           >
             {t.nav.ctaGenerateKundli}
           </Link>
 
-          {/* Mobile Hamburger Button */}
+          {/* Mobile / Tablet Hamburger Button */}
           <button
             type="button"
             onClick={() => setMobileOpen((prev) => !prev)}
