@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Mail, Clock } from 'lucide-react';
+import { Info, Mail, Clock } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { validateContactForm, type ContactFormInput, type ValidationErrorKey } from '../utils/validation';
 import { SectionHeading } from '../components/SectionHeading';
@@ -116,10 +116,17 @@ export function ContactPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           <div className="lg:col-span-7">
             <div className="p-6 sm:p-8 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
+              <div
+                role="note"
+                className="mb-6 p-3.5 rounded-md bg-[#EFE3CE]/80 border border-[#D8AD59]/50 flex items-start gap-2.5 text-xs sm:text-sm text-[#542D24]"
+              >
+                <Info className="w-4 h-4 text-[#8C5320] shrink-0 mt-0.5" aria-hidden="true" />
+                <p className="leading-relaxed">{contact.previewNotice}</p>
+              </div>
               {submitted ? (
                 <div className="py-6 space-y-4">
-                  <div className="w-11 h-11 rounded-full bg-[#351016] text-[#EBD08D] flex items-center justify-center">
-                    <Check className="w-5 h-5" aria-hidden="true" />
+                  <div className="w-11 h-11 rounded-full bg-[#EFE3CE] border border-[#D8AD59] text-[#7C3A12] flex items-center justify-center">
+                    <Info className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <h2 className="font-display text-2xl font-semibold text-[#351016]">
                     {contact.successTitle}
@@ -127,16 +134,24 @@ export function ContactPage() {
                   <p className="text-sm sm:text-[15px] text-[#542D24] leading-relaxed">
                     {contact.successBody}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSubmitted(false);
-                      setForm({ name: '', email: '', subject: '', message: '' });
-                    }}
-                    className="inline-flex items-center px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors cursor-pointer"
-                  >
-                    {contact.sendAnotherBtn}
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSubmitted(false);
+                        setForm({ name: '', email: '', subject: '', message: '' });
+                      }}
+                      className="inline-flex items-center px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors cursor-pointer"
+                    >
+                      {contact.sendAnotherBtn}
+                    </button>
+                    <a
+                      href="mailto:namaste@jyotishsetu.in"
+                      className="inline-flex items-center px-4 py-2.5 rounded-md border border-[#D8AD59] text-[#351016] text-sm font-medium hover:bg-[#EFE3CE] transition-colors"
+                    >
+                      namaste@jyotishsetu.in
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} noValidate className="space-y-5">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   ArrowRight,
   Compass,
@@ -12,10 +12,15 @@ import {
   Sunrise,
   Sunset,
   Clock,
-  Check,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { validateEmail } from '../utils/validation';
+import {
+  formatPanchangDate,
+  getPanchangCityById,
+  loadSavedPanchangCity,
+} from '../utils/panchang';
 import type { ToolId } from '../i18n/types';
 import { Link } from '../components/Link';
 import { SectionHeading } from '../components/SectionHeading';
@@ -36,34 +41,34 @@ const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>>
 };
 
 export function HomePage() {
-  const { t } = useLanguage();
-  const [notifyEmail, setNotifyEmail] = useState('');
-  const [notifyError, setNotifyError] = useState<string | null>(null);
-  const [notifySubmitted, setNotifySubmitted] = useState(false);
+  const { language, t } = useLanguage();
 
-  const handlePremiumNotify = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errKey = validateEmail(notifyEmail);
-    if (errKey) {
-      setNotifyError(t.validation[errKey]);
-      setNotifySubmitted(false);
-      return;
-    }
-    setNotifyError(null);
-    setNotifySubmitted(true);
-    setNotifyEmail('');
-  };
+  const todayFormatted = useMemo(() => formatPanchangDate(new Date(), language), [language]);
+  const selectedCity = useMemo(() => {
+    const savedId = loadSavedPanchangCity(
+      typeof window !== 'undefined' ? window.localStorage : null,
+    );
+    return getPanchangCityById(savedId);
+  }, []);
 
   const pFields = t.panchang.data.fields;
   const panchangEntries = [
-    { key: 'date', ...pFields.date, isTime: false, isCaution: false },
-    { key: 'tithi', ...pFields.tithi, isTime: false, isCaution: false },
-    { key: 'nakshatra', ...pFields.nakshatra, isTime: false, isCaution: false },
-    { key: 'yoga', ...pFields.yoga, isTime: false, isCaution: false },
-    { key: 'karana', ...pFields.karana, isTime: false, isCaution: false },
-    { key: 'sunrise', ...pFields.sunrise, isTime: true, isCaution: false },
-    { key: 'sunset', ...pFields.sunset, isTime: true, isCaution: false },
-    { key: 'rahuKaal', ...pFields.rahuKaal, isTime: true, isCaution: true },
+    {
+      key: 'date',
+      label: pFields.date.label,
+      value: todayFormatted.formattedDate,
+      sub: `${todayFormatted.weekdayVedic} · ${pFields.date.sub.split('·').slice(1).join('·').trim() || pFields.date.sub}`,
+      isTime: false,
+      isCaution: false,
+      isSample: false,
+    },
+    { key: 'tithi', ...pFields.tithi, isTime: false, isCaution: false, isSample: true },
+    { key: 'nakshatra', ...pFields.nakshatra, isTime: false, isCaution: false, isSample: true },
+    { key: 'yoga', ...pFields.yoga, isTime: false, isCaution: false, isSample: true },
+    { key: 'karana', ...pFields.karana, isTime: false, isCaution: false, isSample: true },
+    { key: 'sunrise', ...pFields.sunrise, isTime: true, isCaution: false, isSample: true },
+    { key: 'sunset', ...pFields.sunset, isTime: true, isCaution: false, isSample: true },
+    { key: 'rahuKaal', ...pFields.rahuKaal, isTime: true, isCaution: true, isSample: true },
   ];
 
   return (
@@ -177,8 +182,10 @@ export function HomePage() {
                         <Icon className="w-5 h-5" aria-hidden="true" />
                       </div>
                       <span
-                        className={`text-[11px] font-medium tracking-wide ${
-                          isPreview ? 'text-[#7C4710]' : 'text-[#542D24]/70'
+                        className={`text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
+                          isPreview
+                            ? 'bg-[#EFE3CE]/80 border-[#D8AD59]/60 text-[#7C4710]'
+                            : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
                         }`}
                       >
                         {isPreview ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
@@ -195,7 +202,7 @@ export function HomePage() {
                   </div>
 
                   <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016]">
-                    <span>{t.quickTools.openTool}</span>
+                    <span>{isPreview ? t.quickTools.openTool : t.quickTools.openComingSoon}</span>
                     <ArrowRight
                       className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
                       aria-hidden="true"
@@ -227,16 +234,19 @@ export function HomePage() {
             </Link>
           </div>
 
-          {/* Clearly Labelled Demonstration Metadata Bar */}
+          {/* Clearly Labelled Sample-Data Metadata Bar */}
           <div className="mt-8 p-4 sm:px-6 rounded-t-lg bg-[#351016] text-[#F8F0E3] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm">
+              <AlertTriangle className="w-4 h-4 text-[#E99A32] shrink-0" aria-hidden="true" />
               <span className="font-semibold text-[#E99A32]">
                 {t.panchang.data.demoNoticeTitle}
               </span>
               <span className="text-[#D8AD59]/50" aria-hidden="true">
                 ·
               </span>
-              <span className="text-[#F8F0E3]/90">{t.panchang.data.locationValue}</span>
+              <span className="text-[#F8F0E3]/90">
+                {selectedCity.names[language]}, {selectedCity.regions[language]} ({selectedCity.timezone})
+              </span>
             </div>
             <div className="text-xs text-[#EBD08D]">
               {t.panchang.data.samvatLabel}: {t.panchang.data.samvatValue}
@@ -256,15 +266,22 @@ export function HomePage() {
                   <span className="text-xs font-medium tracking-wider text-[#8C5320]">
                     {item.label}
                   </span>
-                  {item.key === 'sunrise' && (
-                    <Sunrise className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
-                  )}
-                  {item.key === 'sunset' && (
-                    <Sunset className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
-                  )}
-                  {item.key === 'rahuKaal' && (
-                    <Clock className="w-4 h-4 text-[#7A2029]" aria-hidden="true" />
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {item.isSample && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#EFE3CE]/80 border border-[#D8AD59]/45 text-[#7C3A12]">
+                        {t.panchang.sampleTag}
+                      </span>
+                    )}
+                    {item.key === 'sunrise' && (
+                      <Sunrise className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+                    )}
+                    {item.key === 'sunset' && (
+                      <Sunset className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
+                    )}
+                    {item.key === 'rahuKaal' && (
+                      <Clock className="w-4 h-4 text-[#7A2029]" aria-hidden="true" />
+                    )}
+                  </div>
                 </div>
 
                 <p
@@ -280,7 +297,10 @@ export function HomePage() {
             ))}
           </div>
 
-          <p className="mt-3.5 text-xs text-[#542D24]/85">{t.panchang.data.demoNoticeBody}</p>
+          <div className="mt-3.5 p-3.5 rounded-md bg-[#F5E4CA]/80 border border-[#D8AD59]/50 flex items-start gap-2.5 text-xs text-[#542D24]">
+            <AlertTriangle className="w-4 h-4 text-[#9A3412] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="leading-relaxed">{t.panchang.data.demoNoticeBody}</p>
+          </div>
         </div>
       </section>
 
@@ -294,7 +314,18 @@ export function HomePage() {
             align="center"
           />
 
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          {/* Explicit Approximate Vedic Solar Sign Date Note & Sample Notice */}
+          <div className="mt-8 max-w-4xl mx-auto p-4 rounded-lg bg-[#EFE3CE]/80 border border-[#D8AD59]/50 text-xs sm:text-[13px] text-[#542D24] space-y-1.5">
+            <p className="flex items-start gap-2 leading-relaxed">
+              <Info className="w-4 h-4 text-[#8C5320] shrink-0 mt-0.5" aria-hidden="true" />
+              <span>{t.horoscope.solarDateNote}</span>
+            </p>
+            <p className="pl-6 text-[12px] text-[#7C3A12] font-medium">
+              {t.horoscope.demoBanner}
+            </p>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
             {t.horoscope.signs.map((sign) => (
               <Link
                 key={sign.id}
@@ -308,7 +339,8 @@ export function HomePage() {
                   {sign.name}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-[#8C5320] font-medium">{sign.vedicName}</p>
-                <p className="mt-1.5 text-[11px] text-[#542D24]/80">{sign.dates}</p>
+                <p className="mt-2 text-[10px] text-[#7C4710]/90">{t.horoscope.approxSolarDateLabel}</p>
+                <p className="text-[11px] text-[#542D24]/85 font-medium">{sign.dates}</p>
                 <span className="mt-3 text-xs font-semibold text-[#351016] group-hover:text-[#C47616] transition-colors">
                   {t.horoscope.readSignCta} →
                 </span>
@@ -399,45 +431,36 @@ export function HomePage() {
                 {t.premium.noPaymentNote}
               </p>
 
-              {/* Early Access Interest Form (Local preview only, no backend/payments) */}
+              {/* Honest Email Notification Placeholder (Disabled in Phase 1 — No Backend) */}
               <div className="mt-7 pt-6 border-t border-[#D8AD59]/25">
                 <p className="text-sm font-medium text-[#EBD08D]">{t.premium.notifyTitle}</p>
-                {notifySubmitted ? (
-                  <div className="mt-3 p-3.5 rounded-md bg-[#24090E] border border-[#D8AD59]/40 text-sm text-[#F5DC9B] flex items-start gap-2.5">
-                    <Check className="w-4 h-4 text-[#E99A32] shrink-0 mt-0.5" aria-hidden="true" />
-                    <span>{t.premium.notifySuccess}</span>
-                  </div>
-                ) : (
-                  <form onSubmit={handlePremiumNotify} noValidate className="mt-3">
-                    <div className="flex flex-col sm:flex-row gap-2.5">
-                      <label htmlFor="premium-notify-email" className="sr-only">
-                        {t.premium.notifyTitle}
-                      </label>
-                      <input
-                        id="premium-notify-email"
-                        type="email"
-                        value={notifyEmail}
-                        onChange={(e) => {
-                          setNotifyEmail(e.target.value);
-                          if (notifyError) setNotifyError(null);
-                        }}
-                        placeholder={t.premium.notifyPlaceholder}
-                        className="flex-1 h-11 px-3.5 rounded-md bg-[#24090E] border border-[#D8AD59]/40 text-sm text-[#F8F0E3] placeholder:text-[#F8F0E3]/45"
-                      />
-                      <button
-                        type="submit"
-                        className="h-11 px-5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold hover:brightness-105 transition-all whitespace-nowrap shrink-0 cursor-pointer"
-                      >
-                        {t.premium.notifyButton}
-                      </button>
-                    </div>
-                    {notifyError && (
-                      <p role="alert" className="mt-2 text-xs text-[#F5B971]">
-                        {notifyError}
-                      </p>
-                    )}
-                  </form>
-                )}
+                <div className="mt-3 flex flex-col sm:flex-row gap-2.5">
+                  <label htmlFor="premium-notify-email" className="sr-only">
+                    {t.premium.notifyTitle}
+                  </label>
+                  <input
+                    id="premium-notify-email"
+                    type="email"
+                    disabled
+                    aria-disabled="true"
+                    value=""
+                    readOnly
+                    placeholder={t.premium.notifyPlaceholder}
+                    className="flex-1 h-11 px-3.5 rounded-md bg-[#24090E]/60 border border-[#D8AD59]/25 text-sm text-[#F8F0E3]/50 placeholder:text-[#F8F0E3]/45 cursor-not-allowed"
+                  />
+                  <button
+                    type="button"
+                    disabled
+                    aria-disabled="true"
+                    className="h-11 px-5 rounded-md bg-[#542D24]/70 border border-[#D8AD59]/30 text-[#F8F0E3]/70 text-sm font-semibold whitespace-nowrap shrink-0 cursor-not-allowed"
+                  >
+                    {t.premium.notifyButton}
+                  </button>
+                </div>
+                <p className="mt-2.5 flex items-start gap-2 text-xs text-[#F5DC9B]/85 leading-relaxed">
+                  <Info className="w-3.5 h-3.5 text-[#E99A32] shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>{t.premium.notifyUnavailableNote}</span>
+                </p>
               </div>
             </div>
 

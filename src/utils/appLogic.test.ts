@@ -19,6 +19,15 @@ import {
   getActiveNavKey,
 } from './routing';
 import { validateEmail, validateContactForm } from './validation';
+import {
+  PANCHANG_CITIES,
+  PANCHANG_CITY_STORAGE_KEY,
+  DEFAULT_PANCHANG_CITY_ID,
+  getPanchangCityById,
+  loadSavedPanchangCity,
+  savePanchangCity,
+  formatPanchangDate,
+} from './panchang';
 
 function createMemoryStorage(): StorageLike {
   const store = new Map<string, string>();
@@ -81,6 +90,15 @@ test('all three languages exist with complete zodiac, tools, blog, and panchang 
       assert.ok(fields[key].label.length > 0, `${code}: panchang.${key}.label`);
       assert.ok(fields[key].value.length > 0, `${code}: panchang.${key}.value`);
     }
+    assert.ok(dict.horoscope.solarDateNote.length > 0, `${code}: solarDateNote`);
+    assert.ok(dict.horoscope.approxSolarDateLabel.length > 0, `${code}: approxSolarDateLabel`);
+    assert.ok(dict.horoscope.sampleBadge.length > 0, `${code}: sampleBadge`);
+    assert.ok(dict.premium.notifyUnavailableNote.length > 0, `${code}: premium notifyUnavailableNote`);
+    assert.ok(
+      dict.comingSoonCommon.notifyUnavailableNote.length > 0,
+      `${code}: comingSoon notifyUnavailableNote`,
+    );
+    assert.ok(dict.panchang.citySelectorLabel.length > 0, `${code}: panchang citySelectorLabel`);
   }
 });
 
@@ -199,3 +217,44 @@ test('email and contact form validation rejects empty/invalid inputs and accepts
   assert.equal(valid.valid, true);
   assert.deepEqual(valid.errors, {});
 });
+
+test('Panchang date formatter produces Tuesday, 24 November 2026 across all three languages', () => {
+  const nov24 = new Date(2026, 10, 24, 12, 0, 0);
+
+  const enDate = formatPanchangDate(nov24, 'en');
+  assert.equal(enDate.formattedDate, 'Tuesday, 24 November 2026');
+  assert.equal(enDate.weekdayVedic, 'Mangalavara');
+
+  const hiDate = formatPanchangDate(nov24, 'hi');
+  assert.equal(hiDate.formattedDate, 'मंगलवार, २४ नवम्बर २०२६');
+  assert.equal(hiDate.weekdayVedic, 'मंगलवार');
+
+  const asDate = formatPanchangDate(nov24, 'as');
+  assert.equal(asDate.formattedDate, 'মঙ্গলবাৰ, ২৪ নৱেম্বৰ ২০২৬');
+  assert.equal(asDate.weekdayVedic, 'মঙ্গলবাৰ');
+});
+
+test('Panchang city selector saves, loads, and falls back safely with full localization', () => {
+  const storage = createMemoryStorage();
+  assert.equal(loadSavedPanchangCity(storage), DEFAULT_PANCHANG_CITY_ID);
+
+  savePanchangCity('guwahati', storage);
+  assert.equal(storage.getItem(PANCHANG_CITY_STORAGE_KEY), 'guwahati');
+  assert.equal(loadSavedPanchangCity(storage), 'guwahati');
+
+  const guwahati = getPanchangCityById('guwahati');
+  assert.equal(guwahati.names.en, 'Guwahati');
+  assert.equal(guwahati.names.as, 'গুৱাহাটী');
+  assert.equal(guwahati.regions.as, 'অসম');
+
+  storage.setItem(PANCHANG_CITY_STORAGE_KEY, 'unknown-city');
+  assert.equal(loadSavedPanchangCity(storage), DEFAULT_PANCHANG_CITY_ID);
+
+  assert.ok(PANCHANG_CITIES.length >= 8);
+  for (const city of PANCHANG_CITIES) {
+    assert.ok(city.names.en && city.names.hi && city.names.as);
+    assert.ok(city.regions.en && city.regions.hi && city.regions.as);
+    assert.ok(city.coordinates.includes('°'));
+  }
+});
+

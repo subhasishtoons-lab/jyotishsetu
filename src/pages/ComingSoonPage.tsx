@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { ArrowRight, Check } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Info, Clock } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { ComingSoonFeatureSpec } from '../i18n/types';
-import { validateEmail } from '../utils/validation';
 import { Link } from '../components/Link';
 import { NavagrahaDiagram } from '../components/artwork/NavagrahaDiagram';
 
@@ -12,22 +11,6 @@ interface ComingSoonPageProps {
 
 export function ComingSoonPage({ spec }: ComingSoonPageProps) {
   const { t } = useLanguage();
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errKey = validateEmail(email);
-    if (errKey) {
-      setError(t.validation[errKey]);
-      setSubmitted(false);
-      return;
-    }
-    setError(null);
-    setSubmitted(true);
-    setEmail('');
-  };
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -36,15 +19,15 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-8">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium tracking-[0.14em] text-[#E99A32]">
-                <span>{t.comingSoonCommon.phaseLabel}</span>
-                <span className="text-[#D8AD59]/50" aria-hidden="true">
-                  ·
+              <div className="flex flex-wrap items-center gap-3 text-xs font-medium tracking-[0.12em]">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#24090E] border border-[#E99A32]/60 text-[#E99A32] font-semibold">
+                  <Clock className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                  <span>{t.comingSoonCommon.phaseLabel}</span>
                 </span>
                 <span className="text-[#EBD08D]">{spec.kicker}</span>
               </div>
 
-              <h1 className="mt-3 font-display text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#F8F0E3] leading-[1.15] [text-wrap:balance]">
+              <h1 className="mt-4 font-display text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#F8F0E3] leading-[1.15] [text-wrap:balance]">
                 {spec.title}
               </h1>
 
@@ -66,7 +49,7 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
         </div>
       </section>
 
-      {/* Planned Scope + Methodology + Local Notification */}
+      {/* Planned Scope + Methodology + Honest Notification Status */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Planned Feature Breakdown */}
@@ -81,9 +64,12 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
                   key={item.title}
                   className="p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35"
                 >
-                  <span className="font-mono tabular-nums text-xs text-[#B08532]">
-                    0{idx + 1}
-                  </span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-mono tabular-nums text-[#B08532]">0{idx + 1}</span>
+                    <span className="text-[11px] font-medium text-[#542D24]/75">
+                      {t.quickTools.statusComingSoon}
+                    </span>
+                  </div>
                   <h3 className="mt-2 font-display text-base font-semibold text-[#351016]">
                     {item.title}
                   </h3>
@@ -102,52 +88,51 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
             </div>
           </div>
 
-          {/* Right Sidebar: Early Access & Live Phase 1 Destinations */}
+          {/* Right Sidebar: Honest Notification Status & Phase 1 Destinations */}
           <aside className="lg:col-span-5 space-y-6">
             <div className="p-6 sm:p-7 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
-              <h3 className="font-display text-xl font-semibold text-[#351016]">
-                {t.comingSoonCommon.notifyHeading}
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-display text-xl font-semibold text-[#351016]">
+                  {t.comingSoonCommon.notifyHeading}
+                </h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#EFE3CE] border border-[#D8AD59]/50 text-[#7C3A12] whitespace-nowrap">
+                  {t.comingSoonCommon.notifyUnavailableBadge}
+                </span>
+              </div>
               <p className="mt-2 text-sm text-[#542D24] leading-relaxed">
                 {t.comingSoonCommon.notifyDescription}
               </p>
 
-              {submitted ? (
-                <div className="mt-4 p-4 rounded-md bg-[#EFE3CE] border border-[#D8AD59] text-sm text-[#351016] flex items-start gap-2.5">
-                  <Check className="w-4 h-4 text-[#7C3A12] shrink-0 mt-0.5" aria-hidden="true" />
-                  <span>{t.comingSoonCommon.notifyDone}</span>
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label htmlFor={`notify-${spec.id}`} className="sr-only">
+                    {t.comingSoonCommon.notifyHeading}
+                  </label>
+                  <input
+                    id={`notify-${spec.id}`}
+                    type="email"
+                    disabled
+                    aria-disabled="true"
+                    value=""
+                    readOnly
+                    placeholder={t.comingSoonCommon.emailPlaceholder}
+                    className="w-full h-11 px-3.5 rounded-md bg-[#F4ECE0] border border-[#D8AD59]/35 text-sm text-[#542D24]/60 placeholder:text-[#542D24]/55 cursor-not-allowed"
+                  />
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3">
-                  <div>
-                    <label htmlFor={`notify-${spec.id}`} className="sr-only">
-                      {t.comingSoonCommon.notifyHeading}
-                    </label>
-                    <input
-                      id={`notify-${spec.id}`}
-                      type="email"
-                      value={email}
-                      onChange={(e) => {
-                        setEmail(e.target.value);
-                        if (error) setError(null);
-                      }}
-                      placeholder={t.comingSoonCommon.emailPlaceholder}
-                      className="w-full h-11 px-3.5 rounded-md bg-white border border-[#D8AD59]/50 text-sm text-[#351016] placeholder:text-[#542D24]/50"
-                    />
-                    {error && (
-                      <p role="alert" className="mt-1.5 text-xs text-[#8E1C28]">
-                        {error}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full h-11 px-5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-semibold hover:bg-[#4A1820] transition-colors cursor-pointer"
-                  >
-                    {t.comingSoonCommon.notifyBtn}
-                  </button>
-                </form>
-              )}
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  className="w-full h-11 px-5 rounded-md bg-[#542D24]/40 text-[#F8F0E3] text-sm font-semibold cursor-not-allowed"
+                >
+                  {t.comingSoonCommon.notifyBtn}
+                </button>
+              </div>
+
+              <p className="mt-3.5 flex items-start gap-2 text-xs text-[#542D24] leading-relaxed bg-[#EFE3CE]/65 p-3 rounded-md border border-[#D8AD59]/35">
+                <Info className="w-4 h-4 text-[#8C5320] shrink-0 mt-0.5" aria-hidden="true" />
+                <span>{t.comingSoonCommon.notifyUnavailableNote}</span>
+              </p>
             </div>
 
             <div className="p-6 rounded-lg bg-[#EFE3CE]/70 border border-[#D8AD59]/35">
@@ -184,3 +169,4 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
     </div>
   );
 }
+

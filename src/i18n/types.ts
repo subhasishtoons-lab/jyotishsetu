@@ -156,6 +156,7 @@ export interface TranslationDictionary {
     statusPreview: string;
     statusComingSoon: string;
     openTool: string;
+    openComingSoon: string;
     items: ToolItem[];
   };
   panchang: {
@@ -167,6 +168,10 @@ export interface TranslationDictionary {
     cautionLabel: string;
     phase2NoteTitle: string;
     phase2NoteBody: string;
+    citySelectorLabel: string;
+    citySelectorHelper: string;
+    coordinatesLabel: string;
+    sampleTag: string;
     data: PanchangData;
   };
   horoscope: {
@@ -176,6 +181,9 @@ export interface TranslationDictionary {
     viewFullCta: string;
     readSignCta: string;
     demoBanner: string;
+    sampleBadge: string;
+    solarDateNote: string;
+    approxSolarDateLabel: string;
     selectSignPrompt: string;
     elementLabel: string;
     rulingPlanetLabel: string;
@@ -210,7 +218,7 @@ export interface TranslationDictionary {
     notifyTitle: string;
     notifyPlaceholder: string;
     notifyButton: string;
-    notifySuccess: string;
+    notifyUnavailableNote: string;
     exploreToolsLink: string;
   };
   blog: {
@@ -243,9 +251,10 @@ export interface TranslationDictionary {
     launchNotice: string;
     notifyHeading: string;
     notifyDescription: string;
+    notifyUnavailableBadge: string;
+    notifyUnavailableNote: string;
     emailPlaceholder: string;
     notifyBtn: string;
-    notifyDone: string;
     availableNowTitle: string;
     goToPanchang: string;
     goToHoroscope: string;
@@ -282,6 +291,7 @@ export interface TranslationDictionary {
       messageLabel: string;
       messagePlaceholder: string;
       submitBtn: string;
+      previewNotice: string;
       successTitle: string;
       successBody: string;
       sendAnotherBtn: string;

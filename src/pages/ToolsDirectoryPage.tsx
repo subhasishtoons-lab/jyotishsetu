@@ -97,8 +97,10 @@ export function ToolsDirectoryPage() {
                       <Icon className="w-5 h-5" aria-hidden="true" />
                     </div>
                     <span
-                      className={`text-[11px] font-medium ${
-                        isPreview ? 'text-[#7C4710]' : 'text-[#542D24]/70'
+                      className={`text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
+                        isPreview
+                          ? 'bg-[#EFE3CE]/80 border-[#D8AD59]/60 text-[#7C4710]'
+                          : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
                       }`}
                     >
                       {isPreview ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
@@ -113,7 +115,7 @@ export function ToolsDirectoryPage() {
                 </div>
 
                 <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016]">
-                  <span>{t.quickTools.openTool}</span>
+                  <span>{isPreview ? t.quickTools.openTool : t.quickTools.openComingSoon}</span>
                   <ArrowRight
                     className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
                     aria-hidden="true"

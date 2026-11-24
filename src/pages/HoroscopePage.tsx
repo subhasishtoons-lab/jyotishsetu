@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, AlertTriangle, Info } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useRouter } from '../context/RouterContext';
 import type { ZodiacId } from '../i18n/types';
@@ -38,6 +38,28 @@ export function HoroscopePage({ selectedSignId }: HoroscopePageProps) {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+        {/* Transparent Sample Preview & Approximate Vedic Solar Dates Notice */}
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div
+            role="note"
+            className="p-4 rounded-lg bg-[#F5E4CA] border-l-4 border-[#B85D19] border-y border-r border-y-[#D8AD59]/50 border-r-[#D8AD59]/50 flex items-start gap-3"
+          >
+            <AlertTriangle className="w-4 h-4 text-[#9A3412] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs sm:text-sm text-[#542D24] leading-relaxed">
+              {t.horoscope.demoBanner}
+            </p>
+          </div>
+          <div
+            role="note"
+            className="p-4 rounded-lg bg-[#EFE3CE]/80 border border-[#D8AD59]/50 flex items-start gap-3"
+          >
+            <Info className="w-4 h-4 text-[#8C5320] shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs sm:text-sm text-[#542D24] leading-relaxed">
+              {t.horoscope.solarDateNote}
+            </p>
+          </div>
+        </div>
+
         {/* 12-Sign Interactive Selector Grid */}
         <div>
           <p className="text-xs font-medium tracking-[0.14em] text-[#8C5320] mb-4">
@@ -89,11 +111,16 @@ export function HoroscopePage({ selectedSignId }: HoroscopePageProps) {
               </div>
               <div>
                 <p className="text-xs text-[#EBD08D] tracking-wide">
-                  {activeSign.vedicName} · {activeSign.dates}
+                  {activeSign.vedicName} · {t.horoscope.approxSolarDateLabel}: {activeSign.dates}
                 </p>
-                <h2 className="mt-1 font-display text-3xl font-semibold text-[#F8F0E3]">
-                  {activeSign.name}
-                </h2>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <h2 className="font-display text-3xl font-semibold text-[#F8F0E3]">
+                    {activeSign.name}
+                  </h2>
+                  <span className="text-[11px] font-semibold tracking-wide px-2.5 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/45 text-[#E99A32]">
+                    {t.horoscope.sampleBadge}
+                  </span>
+                </div>
               </div>
             </div>
 
