@@ -15,6 +15,7 @@ import {
   SadeSatiPage,
   MangalDoshaPage,
   NakshatraFinderPage,
+  MuhuratFinderPage,
 } from './pages/FeaturePages';
 import { AboutPage, ContactPage, LegalPolicyPage } from './pages/InfoPages';
 
@@ -39,6 +40,7 @@ function AppShell() {
         if (route.toolSlug === 'sade-sati') return <SadeSatiPage />;
         if (route.toolSlug === 'mangal-dosha') return <MangalDoshaPage />;
         if (route.toolSlug === 'nakshatra-finder') return <NakshatraFinderPage />;
+        if (route.toolSlug === 'muhurat') return <MuhuratFinderPage />;
         return <ToolsDirectoryPage />;
       case 'blog':
         return <BlogPage articleSlug={route.slug} />;

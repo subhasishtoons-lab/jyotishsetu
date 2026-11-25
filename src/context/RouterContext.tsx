@@ -72,10 +72,12 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
         title = t.seo.homeTitle;
         description = t.seo.homeDescription;
         break;
-      case 'kundli':
+      case 'kundli': {
+        const tool = t.quickTools.items.find((item) => item.id === 'free-kundli');
         title = t.seo.kundliTitle;
-        description = t.comingSoonPages.kundli.subtitle;
+        description = tool?.description ?? t.seo.homeDescription;
         break;
+      }
       case 'horoscope': {
         if (route.sign) {
           const sign = t.horoscope.signs.find((s) => s.id === route.sign);
@@ -93,29 +95,41 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
         title = t.seo.panchangTitle;
         description = t.panchang.subtitle;
         break;
-      case 'matching':
+      case 'matching': {
+        const tool = t.quickTools.items.find((item) => item.id === 'kundli-matching');
         title = t.seo.matchingTitle;
-        description = t.comingSoonPages.matching.subtitle;
+        description = tool?.description ?? t.seo.homeDescription;
         break;
-      case 'numerology':
+      }
+      case 'numerology': {
+        const tool = t.quickTools.items.find((item) => item.id === 'numerology');
         title = t.seo.numerologyTitle;
-        description = t.comingSoonPages.numerology.subtitle;
+        description = tool?.description ?? t.seo.homeDescription;
         break;
-      case 'tools':
+      }
+      case 'tools': {
         if (route.toolSlug === 'sade-sati') {
-          title = `${t.comingSoonPages.sadeSati.title} | ${t.brand.name}`;
-          description = t.comingSoonPages.sadeSati.subtitle;
+          const tool = t.quickTools.items.find((item) => item.id === 'sade-sati');
+          title = `${tool?.title ?? 'Sade Sati Calculator'} | ${t.brand.name}`;
+          description = tool?.description ?? t.toolsPage.subtitle;
         } else if (route.toolSlug === 'mangal-dosha') {
-          title = `${t.comingSoonPages.mangalDosha.title} | ${t.brand.name}`;
-          description = t.comingSoonPages.mangalDosha.subtitle;
+          const tool = t.quickTools.items.find((item) => item.id === 'mangal-dosha');
+          title = `${tool?.title ?? 'Mangal Dosha Calculator'} | ${t.brand.name}`;
+          description = tool?.description ?? t.toolsPage.subtitle;
         } else if (route.toolSlug === 'nakshatra-finder') {
-          title = `${t.comingSoonPages.nakshatraFinder.title} | ${t.brand.name}`;
-          description = t.comingSoonPages.nakshatraFinder.subtitle;
+          const tool = t.quickTools.items.find((item) => item.id === 'nakshatra-finder');
+          title = `${tool?.title ?? 'Nakshatra Finder'} | ${t.brand.name}`;
+          description = tool?.description ?? t.toolsPage.subtitle;
+        } else if (route.toolSlug === 'muhurat') {
+          const tool = t.quickTools.items.find((item) => item.id === 'muhurat-finder');
+          title = `${tool?.title ?? 'Muhurat Finder'} | ${t.brand.name}`;
+          description = tool?.description ?? t.panchang.subtitle;
         } else {
           title = t.seo.toolsTitle;
           description = t.toolsPage.subtitle;
         }
         break;
+      }
       case 'blog': {
         if (route.slug) {
           const article = t.blog.articles.find((a) => a.slug === route.slug);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Info, Mail, Clock } from 'lucide-react';
+import { Info, Mail, Clock, Copy, Check, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { CALC_UI } from '../i18n/vedicLabels';
 import { validateContactForm, type ContactFormInput, type ValidationErrorKey } from '../utils/validation';
 import { SectionHeading } from '../components/SectionHeading';
 import { NavagrahaDiagram } from '../components/artwork/NavagrahaDiagram';
@@ -63,8 +64,9 @@ export function AboutPage() {
 }
 
 export function ContactPage() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { contact } = t.infoPages;
+  const ui = CALC_UI[language];
 
   const [form, setForm] = useState<ContactFormInput>({
     name: '',
@@ -74,6 +76,7 @@ export function ContactPage() {
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ContactFormInput, ValidationErrorKey>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleChange = (field: keyof ContactFormInput, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -94,7 +97,22 @@ export function ContactPage() {
       return;
     }
     setErrors({});
+    setCopied(false);
     setSubmitted(true);
+  };
+
+  const formattedBody = `Name: ${form.name.trim()}\nEmail: ${form.email.trim()}\nSubject: ${form.subject.trim()}\n\n${form.message.trim()}`;
+  const mailtoHref = `mailto:namaste@jyotishsetu.in?subject=${encodeURIComponent(
+    form.subject.trim(),
+  )}&body=${encodeURIComponent(formattedBody)}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formattedBody);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
@@ -124,9 +142,9 @@ export function ContactPage() {
                 <p className="leading-relaxed">{contact.previewNotice}</p>
               </div>
               {submitted ? (
-                <div className="py-6 space-y-4">
-                  <div className="w-11 h-11 rounded-full bg-[#EFE3CE] border border-[#D8AD59] text-[#7C3A12] flex items-center justify-center">
-                    <Info className="w-5 h-5" aria-hidden="true" />
+                <div className="py-4 space-y-4">
+                  <div className="w-11 h-11 rounded-full bg-[#2B5A3C]/12 border border-[#2B5A3C]/40 text-[#2B5A3C] flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <h2 className="font-display text-2xl font-semibold text-[#351016]">
                     {contact.successTitle}
@@ -134,23 +152,39 @@ export function ContactPage() {
                   <p className="text-sm sm:text-[15px] text-[#542D24] leading-relaxed">
                     {contact.successBody}
                   </p>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <pre className="p-4 rounded-md bg-[#F8F0E3] border border-[#D8AD59]/40 text-xs text-[#351016] whitespace-pre-wrap font-sans leading-relaxed">
+                    {formattedBody}
+                  </pre>
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    <a
+                      href={mailtoHref}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold hover:brightness-105 transition-all"
+                    >
+                      <Mail className="w-4 h-4" aria-hidden="true" />
+                      <span>{ui.openEmailBtn}</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md border border-[#D8AD59] bg-white text-[#351016] text-sm font-medium hover:bg-[#EFE3CE] transition-colors cursor-pointer"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-[#2B5A3C]" aria-hidden="true" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-[#8C5320]" aria-hidden="true" />
+                      )}
+                      <span>{copied ? ui.copiedBtn : ui.copyInquiryBtn}</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
                         setSubmitted(false);
                         setForm({ name: '', email: '', subject: '', message: '' });
                       }}
-                      className="inline-flex items-center px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors cursor-pointer"
+                      className="inline-flex items-center px-4 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors cursor-pointer"
                     >
                       {contact.sendAnotherBtn}
                     </button>
-                    <a
-                      href="mailto:namaste@jyotishsetu.in"
-                      className="inline-flex items-center px-4 py-2.5 rounded-md border border-[#D8AD59] text-[#351016] text-sm font-medium hover:bg-[#EFE3CE] transition-colors"
-                    >
-                      namaste@jyotishsetu.in
-                    </a>
                   </div>
                 </div>
               ) : (

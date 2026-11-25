@@ -12,16 +12,27 @@ import {
   Sunrise,
   Sunset,
   Clock,
-  AlertTriangle,
   Info,
+  CheckCircle2,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import {
   formatPanchangDate,
+  formatLocalTime,
+  formatTimeRange,
   getPanchangCityById,
   loadSavedPanchangCity,
   localizeDigits,
 } from '../utils/panchang';
+import { computeLivePanchang, formatDegMin } from '../utils/vedicAstrology';
+import {
+  CALC_UI,
+  KARANA_NAMES,
+  NAKSHATRA_NAMES,
+  RASHI_NAMES,
+  YOGA_NAMES,
+  getLocalizedTithiName,
+} from '../i18n/vedicLabels';
 import type { ToolId } from '../i18n/types';
 import { Link } from '../components/Link';
 import { SectionHeading } from '../components/SectionHeading';
@@ -39,12 +50,17 @@ const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>>
   'sade-sati': Orbit,
   'mangal-dosha': Flame,
   'nakshatra-finder': Sparkles,
+  'muhurat-finder': Clock,
 };
+
+const SUITE_ROUTES = ['/kundli', '/kundli', '/matching', '/tools/muhurat'] as const;
 
 export function HomePage() {
   const { language, t } = useLanguage();
+  const ui = CALC_UI[language];
 
-  const todayFormatted = useMemo(() => formatPanchangDate(new Date(), language), [language]);
+  const today = useMemo(() => new Date(), []);
+  const todayFormatted = useMemo(() => formatPanchangDate(today, language), [today, language]);
   const selectedCity = useMemo(() => {
     const savedId = loadSavedPanchangCity(
       typeof window !== 'undefined' ? window.localStorage : null,
@@ -52,37 +68,111 @@ export function HomePage() {
     return getPanchangCityById(savedId);
   }, []);
 
+  const livePanchang = useMemo(
+    () =>
+      computeLivePanchang(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        today.getDate(),
+        selectedCity.lat,
+        selectedCity.lon,
+        selectedCity.utcOffsetMinutes,
+      ),
+    [today, selectedCity],
+  );
+
   const pFields = t.panchang.data.fields;
   const panchangEntries = [
     {
       key: 'date',
       label: pFields.date.label,
       value: todayFormatted.formattedDate,
-      sub: `${todayFormatted.weekdayVedic} · ${pFields.date.sub.split('·').slice(1).join('·').trim() || pFields.date.sub}`,
+      sub: `${todayFormatted.weekdayVedic} · ${localizeDigits(livePanchang.vikramSamvat, language)}`,
       isTime: false,
       isCaution: false,
-      isSample: false,
     },
-    { key: 'tithi', ...pFields.tithi, isTime: false, isCaution: false, isSample: true },
-    { key: 'nakshatra', ...pFields.nakshatra, isTime: false, isCaution: false, isSample: true },
-    { key: 'yoga', ...pFields.yoga, isTime: false, isCaution: false, isSample: true },
-    { key: 'karana', ...pFields.karana, isTime: false, isCaution: false, isSample: true },
-    { key: 'sunrise', ...pFields.sunrise, isTime: true, isCaution: false, isSample: true },
-    { key: 'sunset', ...pFields.sunset, isTime: true, isCaution: false, isSample: true },
-    { key: 'rahuKaal', ...pFields.rahuKaal, isTime: true, isCaution: true, isSample: true },
+    {
+      key: 'tithi',
+      label: pFields.tithi.label,
+      value: getLocalizedTithiName(livePanchang.paksha, livePanchang.tithiInPaksha, language),
+      sub: livePanchang.tithiEndTime
+        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.tithiEndTime, selectedCity.utcOffsetMinutes, language)}`
+        : RASHI_NAMES[language][livePanchang.moonRashiIndex],
+      isTime: false,
+      isCaution: false,
+    },
+    {
+      key: 'nakshatra',
+      label: pFields.nakshatra.label,
+      value: NAKSHATRA_NAMES[language][livePanchang.nakshatraIndex],
+      sub: livePanchang.nakshatraEndTime
+        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.nakshatraEndTime, selectedCity.utcOffsetMinutes, language)}`
+        : RASHI_NAMES[language][livePanchang.moonRashiIndex],
+      isTime: false,
+      isCaution: false,
+    },
+    {
+      key: 'yoga',
+      label: pFields.yoga.label,
+      value: YOGA_NAMES[language][livePanchang.yogaIndex],
+      sub: RASHI_NAMES[language][livePanchang.moonRashiIndex],
+      isTime: false,
+      isCaution: false,
+    },
+    {
+      key: 'karana',
+      label: pFields.karana.label,
+      value: KARANA_NAMES[language][livePanchang.karanaId],
+      sub: RASHI_NAMES[language][livePanchang.sunRashiIndex],
+      isTime: false,
+      isCaution: false,
+    },
+    {
+      key: 'sunrise',
+      label: pFields.sunrise.label,
+      value: livePanchang.sunrise
+        ? formatLocalTime(livePanchang.sunrise, selectedCity.utcOffsetMinutes, language)
+        : '—',
+      sub: `${selectedCity.names[language]} · ${selectedCity.timezone}`,
+      isTime: true,
+      isCaution: false,
+    },
+    {
+      key: 'sunset',
+      label: pFields.sunset.label,
+      value: livePanchang.sunset
+        ? formatLocalTime(livePanchang.sunset, selectedCity.utcOffsetMinutes, language)
+        : '—',
+      sub: `${ui.ayanamshaLabel}: ${localizeDigits(formatDegMin(livePanchang.ayanamsha), language)}`,
+      isTime: true,
+      isCaution: false,
+    },
+    {
+      key: 'rahuKaal',
+      label: pFields.rahuKaal.label,
+      value: livePanchang.rahuKaal
+        ? formatTimeRange(
+            livePanchang.rahuKaal.start,
+            livePanchang.rahuKaal.end,
+            selectedCity.utcOffsetMinutes,
+            language,
+          )
+        : '—',
+      sub: t.panchang.cautionLabel,
+      isTime: true,
+      isCaution: true,
+    },
   ];
 
   return (
     <div>
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden bg-[#351016] text-[#F8F0E3] border-b border-[#D8AD59]/30">
-        {/* Subtle radial atmospheric depth */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_75%_45%,rgba(233,154,50,0.16),rgba(53,16,22,0)_62%)]"
         />
 
-        {/* Decorative Mandala Backdrop on Mobile/Tablet (subtle) */}
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -right-24 -top-24 w-[420px] h-[420px] opacity-20 lg:hidden"
@@ -92,7 +182,6 @@ export function HomePage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-12 lg:gap-10">
-            {/* Hero Editorial Copy */}
             <div className="lg:col-span-7 max-w-2xl">
               <p className="text-xs sm:text-[13px] font-medium tracking-[0.14em] text-[#EBD08D]">
                 {t.hero.kicker}
@@ -123,7 +212,6 @@ export function HomePage() {
                 </Link>
               </div>
 
-              {/* Clean unboxed heritage markers */}
               <div className="mt-10 pt-6 border-t border-[#D8AD59]/20 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-[13px] text-[#EBD08D]/85">
                 {t.hero.traditionMarkers.map((marker, idx) => (
                   <React.Fragment key={marker}>
@@ -138,7 +226,6 @@ export function HomePage() {
               </div>
             </div>
 
-            {/* Hero Focal Celestial Mandala Composition */}
             <div className="hidden lg:flex lg:col-span-5 justify-center items-center">
               <div className="relative w-[440px] h-[440px] xl:w-[480px] xl:h-[480px]">
                 <VedicMandalaArtwork className="w-full h-full drop-shadow-[0_0_40px_rgba(216,173,89,0.16)]" />
@@ -148,7 +235,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 2. QUICK ASTROLOGY TOOLS */}
+      {/* 2. QUICK ASTROLOGY TOOLS (ALL 9 LIVE INTERACTIVE TOOLS) */}
       <section id="astrology-tools" className="py-16 sm:py-20 bg-[#F8F0E3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -167,10 +254,10 @@ export function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {t.quickTools.items.map((tool) => {
               const Icon = TOOL_ICON_MAP[tool.id];
-              const isPreview = tool.status === 'preview';
+              const isAvailable = tool.status === 'live' || tool.status === 'preview';
               return (
                 <Link
                   key={tool.id}
@@ -184,12 +271,12 @@ export function HomePage() {
                       </div>
                       <span
                         className={`text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
-                          isPreview
-                            ? 'bg-[#EFE3CE]/80 border-[#D8AD59]/60 text-[#7C4710]'
+                          isAvailable
+                            ? 'bg-[#2B5A3C]/10 border-[#2B5A3C]/35 text-[#2B5A3C]'
                             : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
                         }`}
                       >
-                        {isPreview ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
+                        {isAvailable ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
                       </span>
                     </div>
 
@@ -203,7 +290,9 @@ export function HomePage() {
                   </div>
 
                   <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016]">
-                    <span>{isPreview ? t.quickTools.openTool : t.quickTools.openComingSoon}</span>
+                    <span>
+                      {isAvailable ? t.quickTools.openTool : t.quickTools.openComingSoon}
+                    </span>
                     <ArrowRight
                       className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
                       aria-hidden="true"
@@ -216,7 +305,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 3. TODAY'S PANCHANG */}
+      {/* 3. TODAY'S LIVE PANCHANG */}
       <section className="py-16 sm:py-20 bg-[#EFE3CE]/70 border-y border-[#D8AD59]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -235,44 +324,37 @@ export function HomePage() {
             </Link>
           </div>
 
-          {/* Clearly Labelled Sample-Data Metadata Bar */}
+          {/* Live Ephemeris Metadata Bar */}
           <div className="mt-8 p-4 sm:px-6 rounded-t-lg bg-[#351016] text-[#F8F0E3] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs sm:text-sm">
-              <AlertTriangle className="w-4 h-4 text-[#E99A32] shrink-0" aria-hidden="true" />
-              <span className="font-semibold text-[#E99A32]">
-                {t.panchang.data.demoNoticeTitle}
-              </span>
+              <CheckCircle2 className="w-4 h-4 text-[#E99A32] shrink-0" aria-hidden="true" />
+              <span className="font-semibold text-[#EBD08D]">{ui.liveEngineBadge}</span>
               <span className="text-[#D8AD59]/50" aria-hidden="true">
                 ·
               </span>
               <span className="text-[#F8F0E3]/90">
-                {selectedCity.names[language]}, {selectedCity.regions[language]} ({selectedCity.timezone})
+                {selectedCity.names[language]}, {selectedCity.regions[language]} (
+                {selectedCity.timezone})
               </span>
             </div>
             <div className="text-xs text-[#EBD08D]">
-              {t.panchang.data.samvatLabel}: {t.panchang.data.samvatValue}
+              {t.panchang.data.samvatLabel}:{' '}
+              {localizeDigits(livePanchang.vikramSamvat, language)}
             </div>
           </div>
 
-          {/* 8 Structured Panchang Fields */}
+          {/* 8 Live Panchang Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-[#D8AD59]/30 border-x border-b border-[#D8AD59]/40 rounded-b-lg overflow-hidden">
             {panchangEntries.map((item) => (
               <div
                 key={item.key}
-                className={`p-5 sm:p-6 ${
-                  item.isCaution ? 'bg-[#F5E9DB]' : 'bg-[#FDF9F2]'
-                }`}
+                className={`p-5 sm:p-6 ${item.isCaution ? 'bg-[#F5E9DB]' : 'bg-[#FDF9F2]'}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium tracking-wider text-[#8C5320]">
                     {item.label}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    {item.isSample && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#EFE3CE]/80 border border-[#D8AD59]/45 text-[#7C3A12]">
-                        {t.panchang.sampleTag}
-                      </span>
-                    )}
                     {item.key === 'sunrise' && (
                       <Sunrise className="w-4 h-4 text-[#C47616]" aria-hidden="true" />
                     )}
@@ -297,15 +379,10 @@ export function HomePage() {
               </div>
             ))}
           </div>
-
-          <div className="mt-3.5 p-3.5 rounded-md bg-[#F5E4CA]/80 border border-[#D8AD59]/50 flex items-start gap-2.5 text-xs text-[#542D24]">
-            <AlertTriangle className="w-4 h-4 text-[#9A3412] shrink-0 mt-0.5" aria-hidden="true" />
-            <p className="leading-relaxed">{t.panchang.data.demoNoticeBody}</p>
-          </div>
         </div>
       </section>
 
-      {/* 4. DAILY HOROSCOPE — ALL 12 ZODIAC SIGNS */}
+      {/* 4. DAILY, WEEKLY & MONTHLY HOROSCOPE — ALL 12 ZODIAC SIGNS */}
       <section className="py-16 sm:py-20 bg-[#F8F0E3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeading
@@ -315,14 +392,10 @@ export function HomePage() {
             align="center"
           />
 
-          {/* Explicit Approximate Vedic Solar Sign Date Note & Sample Notice */}
-          <div className="mt-8 max-w-4xl mx-auto p-4 rounded-lg bg-[#EFE3CE]/80 border border-[#D8AD59]/50 text-xs sm:text-[13px] text-[#542D24] space-y-1.5">
+          <div className="mt-8 max-w-4xl mx-auto p-4 rounded-lg bg-[#EFE3CE]/80 border border-[#D8AD59]/50 text-xs sm:text-[13px] text-[#542D24]">
             <p className="flex items-start gap-2 leading-relaxed">
               <Info className="w-4 h-4 text-[#8C5320] shrink-0 mt-0.5" aria-hidden="true" />
               <span>{t.horoscope.solarDateNote}</span>
-            </p>
-            <p className="pl-6 text-[12px] text-[#7C3A12] font-medium">
-              {t.horoscope.demoBanner}
             </p>
           </div>
 
@@ -340,7 +413,9 @@ export function HomePage() {
                   {sign.name}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-[#8C5320] font-medium">{sign.vedicName}</p>
-                <p className="mt-2 text-[10px] text-[#7C4710]/90">{t.horoscope.approxSolarDateLabel}</p>
+                <p className="mt-2 text-[10px] text-[#7C4710]/90">
+                  {t.horoscope.approxSolarDateLabel}
+                </p>
                 <p className="text-[11px] text-[#542D24]/85 font-medium">{sign.dates}</p>
                 <span className="mt-3 text-xs font-semibold text-[#351016] group-hover:text-[#C47616] transition-colors">
                   {t.horoscope.readSignCta} →
@@ -365,7 +440,6 @@ export function HomePage() {
       <section className="py-16 sm:py-20 bg-[#FDF9F2] border-y border-[#D8AD59]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            {/* Navagraha Traditional Illustration Column */}
             <div className="lg:col-span-5">
               <div className="max-w-md mx-auto">
                 <NavagrahaDiagram className="w-full h-auto rounded-xl shadow-lg" />
@@ -375,7 +449,6 @@ export function HomePage() {
               </div>
             </div>
 
-            {/* Five Pillars Editorial List */}
             <div className="lg:col-span-7">
               <SectionHeading
                 kicker={t.whyChoose.kicker}
@@ -406,7 +479,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 6. PREMIUM SECTION (COMING SOON, NO PAYMENTS YET) */}
+      {/* 6. PRINTABLE VEDIC STUDY & ANALYSIS SUITE (ALL ACTIVE & FREE CLIENT-SIDE) */}
       <section className="relative overflow-hidden py-16 sm:py-20 bg-[#351016] text-[#F8F0E3]">
         <div
           aria-hidden="true"
@@ -417,7 +490,6 @@ export function HomePage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-            {/* Premium Overview & Notify Form */}
             <div className="lg:col-span-5">
               <p className="text-xs font-medium tracking-[0.14em] text-[#E99A32]">
                 {t.premium.statusLabel}
@@ -432,59 +504,59 @@ export function HomePage() {
                 {t.premium.noPaymentNote}
               </p>
 
-              {/* Honest Email Notification Placeholder (Disabled in Phase 1 — No Backend) */}
-              <div className="mt-7 pt-6 border-t border-[#D8AD59]/25">
-                <p className="text-sm font-medium text-[#EBD08D]">{t.premium.notifyTitle}</p>
-                <div className="mt-3 flex flex-col sm:flex-row gap-2.5">
-                  <label htmlFor="premium-notify-email" className="sr-only">
-                    {t.premium.notifyTitle}
-                  </label>
-                  <input
-                    id="premium-notify-email"
-                    type="email"
-                    disabled
-                    aria-disabled="true"
-                    value=""
-                    readOnly
-                    placeholder={t.premium.notifyPlaceholder}
-                    className="flex-1 h-11 px-3.5 rounded-md bg-[#24090E]/60 border border-[#D8AD59]/25 text-sm text-[#F8F0E3]/50 placeholder:text-[#F8F0E3]/45 cursor-not-allowed"
-                  />
-                  <button
-                    type="button"
-                    disabled
-                    aria-disabled="true"
-                    className="h-11 px-5 rounded-md bg-[#542D24]/70 border border-[#D8AD59]/30 text-[#F8F0E3]/70 text-sm font-semibold whitespace-nowrap shrink-0 cursor-not-allowed"
+              <div className="mt-7 pt-6 border-t border-[#D8AD59]/25 space-y-3">
+                <div className="flex flex-wrap gap-3">
+                  <Link
+                    to="/kundli"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold hover:brightness-105 transition-all"
                   >
-                    {t.premium.notifyButton}
-                  </button>
+                    <span>{t.hero.primaryCta}</span>
+                    <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                  </Link>
+                  <Link
+                    to="/tools"
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-md border border-[#D8AD59]/55 text-[#F8F0E3] text-sm font-medium hover:bg-[#4A1820] transition-colors"
+                  >
+                    <span>{t.premium.exploreToolsLink}</span>
+                  </Link>
                 </div>
-                <p className="mt-2.5 flex items-start gap-2 text-xs text-[#F5DC9B]/85 leading-relaxed">
+                <p className="flex items-start gap-2 text-xs text-[#F5DC9B]/85 leading-relaxed">
                   <Info className="w-3.5 h-3.5 text-[#E99A32] shrink-0 mt-0.5" aria-hidden="true" />
                   <span>{t.premium.notifyUnavailableNote}</span>
                 </p>
               </div>
             </div>
 
-            {/* 4 Premium Offerings Grid */}
+            {/* 4 Active Tool Offerings Grid */}
             <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-5">
               {t.premium.features.map((feat, idx) => (
-                <div
+                <Link
                   key={feat.title}
-                  className="p-6 rounded-lg bg-[#2A0B11] border border-[#D8AD59]/30"
+                  to={SUITE_ROUTES[idx] ?? '/tools'}
+                  className="group block p-6 rounded-lg bg-[#2A0B11] border border-[#D8AD59]/35 hover:border-[#E99A32] transition-colors"
                 >
                   <div className="flex items-center justify-between text-xs text-[#D8AD59]">
                     <span className="font-mono tabular-nums">
                       {localizeDigits(`0${idx + 1}`, language)}
                     </span>
-                    <span>{t.quickTools.statusComingSoon}</span>
+                    <span className="text-[#E99A32] font-semibold">
+                      {t.quickTools.statusPreview}
+                    </span>
                   </div>
-                  <h3 className="mt-3 font-display text-lg font-semibold text-[#F8F0E3]">
+                  <h3 className="mt-3 font-display text-lg font-semibold text-[#F8F0E3] group-hover:text-[#EBD08D] transition-colors">
                     {feat.title}
                   </h3>
                   <p className="mt-2 text-sm text-[#F8F0E3]/78 leading-relaxed">
                     {feat.description}
                   </p>
-                </div>
+                  <div className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#EBD08D]">
+                    <span>{t.quickTools.openTool}</span>
+                    <ArrowRight
+                      className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1"
+                      aria-hidden="true"
+                    />
+                  </div>
+                </Link>
               ))}
             </div>
           </div>

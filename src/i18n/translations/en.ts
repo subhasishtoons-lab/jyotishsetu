@@ -11,11 +11,11 @@ export const en: TranslationDictionary = {
     homeTitle: 'JyotishSetu – Ancient Vedic Wisdom & Personalized Astrology',
     homeDescription:
       'Explore the ancient wisdom of Vedic astrology through personalized Kundli, daily horoscope, Hindu Panchang, Kundli matching, and cosmic guidance.',
-    kundliTitle: 'Free Kundli (Janam Patrika) – Coming Soon | JyotishSetu',
-    horoscopeTitle: 'Daily Horoscope (12 Rashis) | JyotishSetu',
+    kundliTitle: 'Free Vedic Kundli (Janam Patrika) – Lahiri Ayanamsha | JyotishSetu',
+    horoscopeTitle: 'Daily, Weekly & Monthly Horoscope (12 Rashis) | JyotishSetu',
     panchangTitle: "Today's Hindu Panchang – Tithi, Nakshatra & Rahu Kaal | JyotishSetu",
-    matchingTitle: 'Kundli Matching (Ashtakoota Milan) – Coming Soon | JyotishSetu',
-    numerologyTitle: 'Vedic Numerology (Ank Jyotish) – Coming Soon | JyotishSetu',
+    matchingTitle: 'Kundli Matching (36-Guna Ashtakoota Milan) | JyotishSetu',
+    numerologyTitle: 'Vedic & Chaldean Numerology Calculator | JyotishSetu',
     toolsTitle: 'Vedic Astrology Tools Directory | JyotishSetu',
     blogTitle: 'Jyotish Journal – Vedic Astrology, Nakshatras & Festivals | JyotishSetu',
     aboutTitle: 'About JyotishSetu – Our Vedic Heritage & Vision',
@@ -57,39 +57,39 @@ export const en: TranslationDictionary = {
     subtitle:
       'Thoughtfully structured Vedic utilities designed to bring clarity to your birth chart, daily planetary rhythm, and auspicious timings.',
     viewAllCta: 'View All Tools',
-    statusPreview: 'Sample Preview · Not Live',
-    statusComingSoon: 'Coming Soon',
-    openTool: 'View Sample',
-    openComingSoon: 'Coming Soon Details',
+    statusPreview: 'Live Tool',
+    statusComingSoon: 'Planned',
+    openTool: 'Open Calculator',
+    openComingSoon: 'View Details',
     items: [
       {
         id: 'free-kundli',
         title: 'Free Kundli',
         subtitle: 'Janam Patrika',
         description:
-          'Complete Vedic birth chart with Lagna, Navamsha, planetary degrees, and Vimshottari Dasha overview.',
+          'Complete Vedic birth chart with North & South Indian Lagna, Navamsha, planetary degrees, and 120-year Vimshottari Dasha.',
         category: 'core',
-        status: 'coming_soon',
+        status: 'live',
         route: '/kundli',
       },
       {
         id: 'daily-horoscope',
-        title: 'Daily Horoscope',
-        subtitle: 'Dainik Rashifal',
+        title: 'Daily, Weekly & Monthly Horoscope',
+        subtitle: 'Rashifal & Gochara',
         description:
-          'Day-by-day lunar transit guidance across all twelve Vedic zodiac signs for career, harmony, and dharma.',
+          'Live sidereal planetary transits paired with daily, weekly, and monthly Vedic guidance across all twelve Rashis.',
         category: 'core',
-        status: 'preview',
+        status: 'live',
         route: '/horoscope',
       },
       {
         id: 'hindu-panchang',
         title: 'Hindu Panchang',
-        subtitle: 'Daily Almanac',
+        subtitle: 'Live Daily Almanac',
         description:
-          'Five-limbed Vedic calendar detailing Tithi, Vara, Nakshatra, Yoga, Karana, sunrise, sunset, and Rahu Kaal.',
+          'Five-limbed Vedic calendar computing Tithi, Nakshatra, Yoga, Karana, Sunrise, Sunset, and Rahu Kaal for any city and date.',
         category: 'core',
-        status: 'preview',
+        status: 'live',
         route: '/panchang',
       },
       {
@@ -97,19 +97,19 @@ export const en: TranslationDictionary = {
         title: 'Kundli Matching',
         subtitle: 'Ashtakoota Milan',
         description:
-          'Traditional 36-Guna marriage compatibility assessment evaluating mental harmony, longevity, and Nadi balance.',
+          'Traditional 36-Guna compatibility calculation with all 8 Kootas, Nadi/Bhakoot Parihara checks, and Mangal comparison.',
         category: 'core',
-        status: 'coming_soon',
+        status: 'live',
         route: '/matching',
       },
       {
         id: 'numerology',
-        title: 'Numerology',
+        title: 'Numerology Calculator',
         subtitle: 'Ank Jyotish',
         description:
-          'Discover Mulank, Bhagyank, and planetary number vibrations rooted in classical Indian numerology.',
+          'Compute Mulank (Birth Number), Bhagyank (Destiny Number), Chaldean Namank, ruling planets, and harmonic numbers.',
         category: 'core',
-        status: 'coming_soon',
+        status: 'live',
         route: '/numerology',
       },
       {
@@ -117,57 +117,67 @@ export const en: TranslationDictionary = {
         title: 'Sade Sati Calculator',
         subtitle: 'Shani Transit',
         description:
-          'Examine Saturn’s seven-and-a-half-year transit phases relative to your natal Moon sign and remedies.',
+          'Check live sidereal Saturn transit against your natal Moon for Rising, Peak, Setting phases, Shani Dhaiya, and date windows.',
         category: 'dosha',
-        status: 'coming_soon',
+        status: 'live',
         route: '/tools/sade-sati',
       },
       {
         id: 'mangal-dosha',
-        title: 'Mangal Dosha',
+        title: 'Mangal Dosha Calculator',
         subtitle: 'Kuja Analysis',
         description:
-          'Evaluate Mars placements across Lagna, Moon, and Venus charts with classical cancellation rules.',
+          'Evaluate sidereal Mars placement from Lagna, Chandra, and Shukra along with classical Parihara cancellation rules.',
         category: 'dosha',
-        status: 'coming_soon',
+        status: 'live',
         route: '/tools/mangal-dosha',
       },
       {
         id: 'nakshatra-finder',
         title: 'Nakshatra Finder',
-        subtitle: 'Janma Tara',
+        subtitle: 'Janma Tara & Pada',
         description:
-          'Identify your birth lunar mansion, Pada, ruling deity, and auspicious syllable for naming ceremonies.',
+          'Find your exact birth Nakshatra, Pada (1–4), naming syllable (Namakshar), deity, Gana, Yoni, Nadi, and Dasha balance.',
         category: 'dosha',
-        status: 'coming_soon',
+        status: 'live',
         route: '/tools/nakshatra-finder',
+      },
+      {
+        id: 'muhurat-finder',
+        title: 'Muhurat & Choghadiya Finder',
+        subtitle: 'Shubh Muhurat',
+        description:
+          'Live Brahma, Abhijit, Vijaya, and Godhuli Muhurats plus all 16 Day & Night Choghadiya intervals for any date and city.',
+        category: 'dosha',
+        status: 'live',
+        route: '/tools/muhurat',
       },
     ],
   },
   panchang: {
-    kicker: 'Vedic Timekeeping · Sample Preview (Not Live)',
+    kicker: 'Vedic Timekeeping · Live Lahiri Ephemeris',
     title: "Today's Panchang",
     subtitle:
-      'Preview the classical five-limbed Vedic calendar layout covering Tithi, Nakshatra, Yoga, Karana, and solar intervals.',
+      'Live five-limbed Vedic calendar computing Tithi, Nakshatra, Yoga, Karana, Sunrise, Sunset, and Rahu Kaal for your selected city and date.',
     fullPanchangCta: 'Open Full Panchang',
-    auspiciousLabel: 'Auspicious Window (Sample)',
-    cautionLabel: 'Caution Period (Sample)',
-    phase2NoteTitle: 'Phase 2 Live Calculation Roadmap',
+    auspiciousLabel: 'Auspicious Window',
+    cautionLabel: 'Caution Period',
+    phase2NoteTitle: 'Location-Aware Astronomical Engine',
     phase2NoteBody:
-      'In Phase 2, JyotishSetu will integrate real-time Lahiri Ayanamsha ephemeris calculations customized for your selected city, latitude, longitude, and timezone across India and worldwide.',
-    citySelectorLabel: 'Reference City (Prepared for Phase 2)',
+      'All Panchang and Muhurat calculations run directly in your browser using VSOP87/ELP astronomical positions adjusted for Lahiri (Chitrapaksha) Ayanamsha and your chosen city coordinates.',
+    citySelectorLabel: 'Select City (Live Calculation)',
     citySelectorHelper:
-      'Your selected city is saved locally to prepare for location-specific calculations in Phase 2. The Panchang values shown below remain static sample data and do not yet recalculate by city.',
+      'Changing the city or date immediately recalculates Sunrise, Sunset, Udayatithi Tithi, Nakshatra, Yoga, Karana, Rahu Kaal, and Muhurat windows.',
     coordinatesLabel: 'Coordinates',
-    sampleTag: 'Sample Data',
+    sampleTag: 'Live',
     data: {
-      demoNoticeTitle: 'Sample Data Only — Live Calculations Coming Soon',
+      demoNoticeTitle: 'Live Astronomical Panchang · Lahiri Ayanamsha',
       demoNoticeBody:
-        'Illustrative sample Panchang values are shown below to demonstrate our Phase 1 layout. These are not live astronomical calculations—real city-specific ephemeris calculations arrive in Phase 2.',
+        'Computed directly from local Sunrise, Sunset, and sidereal lunar-solar longitudes for your selected city and date.',
       locationLabel: 'Selected City',
-      locationValue: 'Varanasi, Uttar Pradesh (IST · Sample Reference)',
+      locationValue: 'Varanasi, Uttar Pradesh (IST)',
       samvatLabel: 'Vikram Samvat',
-      samvatValue: '2083 · Sample Calendar Preview',
+      samvatValue: '2083',
       fields: {
         date: {
           label: 'Date',
@@ -210,43 +220,43 @@ export const en: TranslationDictionary = {
           sub: 'Sample interval · Avoid new starts',
         },
       },
-      extraTimingsTitle: 'Additional Daily Muhurat Windows (Sample Preview — Not Live)',
+      extraTimingsTitle: 'Daily Muhurat & Caution Windows',
       extraTimings: [
         {
           name: 'Brahma Muhurat',
           time: '04:59 AM – 05:47 AM',
           nature: 'auspicious',
-          note: 'Sample pre-dawn window traditionally noted for meditation, mantra japa, and quiet study.',
+          note: 'Pre-dawn window traditionally noted for meditation, mantra japa, and quiet study.',
         },
         {
           name: 'Abhijit Muhurat',
           time: '11:35 AM – 12:18 PM',
           nature: 'auspicious',
-          note: 'Sample midday window traditionally favoured for important initiatives.',
+          note: 'Midday window around local solar noon traditionally favoured for important initiatives.',
         },
         {
           name: 'Yamaganda Kaal',
           time: '09:16 AM – 10:36 AM',
           nature: 'caution',
-          note: 'Sample cautionary period traditionally observed with patience before formal ceremonies.',
+          note: 'Cautionary period traditionally observed with patience before formal ceremonies.',
         },
       ],
     },
   },
   horoscope: {
-    kicker: 'Dwadasha Rashi · Twelve Vedic Signs (Sample Preview)',
-    title: 'Daily Horoscope',
+    kicker: 'Dwadasha Rashi · Live Sidereal Transits',
+    title: 'Daily, Weekly & Monthly Horoscope',
     subtitle:
-      'Browse our Phase 1 editorial preview across all twelve classical Vedic Rashis. Select any sign to view its sample daily layout.',
+      'Inspect live sidereal planetary transits (Lahiri Ayanamsha) and Daily, Weekly, and Monthly guidance across all twelve Vedic Rashis.',
     viewFullCta: 'Explore All 12 Signs',
-    readSignCta: 'View Sample',
+    readSignCta: 'View Horoscope',
     demoBanner:
-      'Sample Editorial Preview — Live Calculations Coming Soon: Readings shown below are illustrative Phase 1 examples, not genuine daily transit calculations.',
-    sampleBadge: 'Sample Reading · Not Live Calculation',
+      'Live sidereal planetary transits paired with traditional sign-level interpretive guidance.',
+    sampleBadge: 'Live Transits · Sign Guidance',
     solarDateNote:
       'Note on dates: The date ranges shown below are approximate Vedic sidereal solar sign (Surya Sankranti) periods—not Western tropical zodiac dates. Traditional Vedic horoscopes are primarily read from your natal Moon sign (Chandra Rashi).',
     approxSolarDateLabel: 'Approx. Vedic solar sign',
-    selectSignPrompt: 'Select a Rashi (Sample Preview)',
+    selectSignPrompt: 'Select Your Rashi (Vedic Zodiac Sign)',
     elementLabel: 'Element',
     rulingPlanetLabel: 'Ruling Graha',
     generalTitle: 'Daily Cosmic Overview',
@@ -506,47 +516,47 @@ export const en: TranslationDictionary = {
       },
       {
         number: '05',
-        title: 'Premium Reports Coming Soon',
+        title: 'Printable Vedic Folios & Dasha',
         description:
-          'In-depth downloadable Kundli folios, multi-year Vimshottari Dasha manuscripts, and personalized consultations are being crafted for upcoming phases.',
+          'Generate printable Lagna & Navamsha charts, 120-year Vimshottari Dasha timelines, Ashtakoota matching, and Muhurat tables directly in your browser.',
       },
     ],
   },
   premium: {
-    kicker: 'JyotishSetu Pratishtha · Membership Preview',
-    statusLabel: 'Coming Soon · No Payments Yet',
-    title: 'Curated Vedic Manuscripts & Deep Insights',
+    kicker: 'JyotishSetu Study Suite · Free Client-Side Tools',
+    statusLabel: 'Active & Free · No Account Required',
+    title: 'Interactive Vedic Charts, Dasha & Printable Reports',
     subtitle:
-      'Our upcoming Premium suite will bring heirloom-quality astrological reports and classical analytical depth directly to your reading desk.',
+      'Every core sidereal Vedic instrument runs immediately in your browser using Lahiri Ayanamsha ephemeris calculations, with print-ready layouts for personal study.',
     noPaymentNote:
-      'Premium memberships and paid reports are currently in preparation. No billing or payment collection is active in Phase 1.',
+      'All calculators on JyotishSetu are completely free to use right now. No login, paid membership, or payment gateway is required.',
     features: [
       {
-        title: 'Detailed Kundli PDF',
+        title: 'Printable Kundli Folio',
         description:
-          'Print-ready Janam Patrika folio featuring Lagna, Navamsha, Dashamsha charts, planetary Shadbala, and house-by-house interpretation.',
+          'Generate North & South Indian Lagna (D-1), Navamsha (D-9), and Chandra charts with planetary degrees and print or save as PDF.',
       },
       {
-        title: 'Advanced Dasha Report',
+        title: '120-Year Vimshottari Dasha',
         description:
-          'Multi-layered Vimshottari Mahadasha, Antardasha, and Pratyantardasha timeline illuminating pivotal life chapters.',
+          'Explore your birth-balance Mahadasha sequence and active Antardasha sub-periods calculated from exact sidereal Moon longitude.',
       },
       {
-        title: 'Marriage Compatibility Report',
+        title: '36-Guna Ashtakoota Matching',
         description:
-          'Comprehensive Ashtakoota Guna Milan paired with Manglik evaluation, Navamsha synastry, and harmonic guidance for couples.',
+          'Evaluate all eight Kootas between two birth charts along with Nadi/Bhakoot Parihara checks and comparative Mangal analysis.',
       },
       {
-        title: 'Personalized Astrology Insights',
+        title: 'Live Muhurat & Choghadiya',
         description:
-          'Focused guidance for career dharma, education, auspicious Muhurat selection, and traditional remedial practices.',
+          'Inspect daily Brahma, Abhijit, Vijaya, and Godhuli Muhurats plus all 16 Day and Night Choghadiya slots for any city and date.',
       },
     ],
-    notifyTitle: 'Launch Notifications (Coming Soon)',
-    notifyPlaceholder: 'Email signup opens in Phase 2',
-    notifyButton: 'Not Active Yet',
+    notifyTitle: 'Frontend-Only Privacy',
+    notifyPlaceholder: '',
+    notifyButton: '',
     notifyUnavailableNote:
-      'Email notifications are disabled in Phase 1 because no backend or mailing list is connected yet. No email addresses are collected, saved, or submitted.',
+      'Note: Paid personal astrologer consultations, cloud-saved accounts, and automated email alerts are not part of this frontend-only release. All calculations run privately on your device.',
     exploreToolsLink: 'Browse All Astrology Tools',
   },
   blog: {
@@ -660,7 +670,7 @@ export const en: TranslationDictionary = {
     kicker: 'Complete Jyotish Suite',
     title: 'Vedic Astrology Tools',
     subtitle:
-      'Explore all eight planned and preview instruments of JyotishSetu. Phase 1 establishes our multilingual foundation; astronomical calculation engines arrive in Phase 2.',
+      'Explore all nine interactive Vedic instruments of JyotishSetu—powered directly in your browser by VSOP87/ELP sidereal ephemeris and Lahiri (Chitrapaksha) Ayanamsha.',
     filterAll: 'All Tools',
     filterCore: 'Core Vedic Charts',
     filterDosha: 'Dosha & Lunar Analysis',
@@ -712,7 +722,7 @@ export const en: TranslationDictionary = {
       ],
       methodologyTitle: 'Classical Parashari Foundation',
       methodologyBody:
-        'Our upcoming Kundli engine follows Brihat Parashara Hora Shastra with True Chitrapaksha (Lahiri) Ayanamsha and topocentric sunrise definitions so every house cusp and planetary placement remains faithful to Indian tradition.',
+        'This Kundli engine follows Brihat Parashara Hora Shastra with True Chitrapaksha (Lahiri) Ayanamsha and topocentric coordinates so every ascendant degree, house placement, and Vimshottari Dasha period remains faithful to Indian tradition.',
     },
     matching: {
       id: 'matching',
@@ -742,7 +752,7 @@ export const en: TranslationDictionary = {
       ],
       methodologyTitle: 'Beyond Raw Scores',
       methodologyBody:
-        'Classical Jyotish teaches that Gunas are one chapter of partnership harmony. JyotishSetu will pair Ashtakoota mathematics with compassionate, transparent explanations of planetary strengths.',
+        'Classical Jyotish teaches that Gunas are one chapter of partnership harmony. JyotishSetu pairs Ashtakoota mathematics with transparent Nadi/Bhakoot Parihara checks and comparative Mangal analysis.',
     },
     numerology: {
       id: 'numerology',
@@ -772,7 +782,7 @@ export const en: TranslationDictionary = {
       ],
       methodologyTitle: 'Numbers as Planetary Expressions',
       methodologyBody:
-        'In Indian Ank Jyotish, each digit mirrors one of the nine Grahas. Our upcoming calculator harmonizes numerological rhythms with traditional Vedic symbolism.',
+        'In Indian Ank Jyotish, each digit mirrors one of the nine Grahas. This calculator pairs classical Mulank and Bhagyank reduction with Chaldean phonetic Namank mapping and traditional planetary harmonies.',
     },
     sadeSati: {
       id: 'sade-sati',
@@ -832,7 +842,7 @@ export const en: TranslationDictionary = {
       ],
       methodologyTitle: 'Clarity Over Fear',
       methodologyBody:
-        'Many charts labelled "Manglik" carry natural scriptural cancellations. Our Phase 2 engine will highlight every mitigating factor clearly so families make informed decisions.',
+        'Many charts labelled "Manglik" carry natural scriptural cancellations. This calculator evaluates Lagna, Moon, and Venus placements alongside classical Parihara exceptions so families can review every factor clearly.',
     },
     nakshatraFinder: {
       id: 'nakshatra-finder',
@@ -873,8 +883,8 @@ export const en: TranslationDictionary = {
         'JyotishSetu—meaning "The Bridge of Light"—was envisioned to make authentic Indian Vedic astrology clear, dignified, and accessible in the languages India speaks at home.',
       paragraphs: [
         'For millennia, Jyotish Shastra has offered seekers a luminous mirror of time, temperament, and dharmic purpose. Yet on the modern web, traditional wisdom is too often buried beneath clutter, alarmist claims, or rigid single-language interfaces.',
-        'JyotishSetu brings editorial craft and classical reverence together. In Phase 1, we have established our multilingual website foundation across English, हिन्दी, and অসমীয়া—pairing sacred Indian visual heritage with transparent demonstration previews of Panchang, Daily Horoscope, and Vedic essays.',
-        'As we advance into Phase 2 and beyond, our roadmap introduces accurate sidereal Kundli calculations, 36-Guna Ashtakoota matching, location-aware Panchang ephemeris, and heirloom-grade downloadable Vedic manuscripts.',
+        'JyotishSetu brings editorial craft, genuine astronomical precision, and classical reverence together across English, हिन्दी, and অসমীয়া—combining live Lahiri (Chitrapaksha) Ayanamsha calculations with dignified Vedic scholarship.',
+        'All core calculators—Free Kundli, 36-Guna Ashtakoota Matching, Hindu Panchang, Muhurat & Choghadiya Finder, Sade Sati, Mangal Dosha, Nakshatra Finder, and Numerology—run directly in your browser without requiring accounts or transmitting personal birth details to external servers.',
       ],
       pillarsTitle: 'Our Guiding Principles',
       pillars: [
@@ -896,22 +906,22 @@ export const en: TranslationDictionary = {
       kicker: 'Editorial & Community Desk',
       title: 'Contact Us',
       lead:
-        'Have feedback on our Phase 1 foundation, multilingual terminology suggestions, or questions about upcoming JyotishSetu tools? Write to our team below.',
+        'Have feedback on our Vedic calculators, multilingual terminology suggestions, or editorial questions? Prepare your message below to send via your email app.',
       nameLabel: 'Full Name',
       namePlaceholder: 'Enter your name',
       emailLabel: 'Email Address',
       emailPlaceholder: 'you@example.com',
       subjectLabel: 'Subject',
-      subjectPlaceholder: 'e.g., Phase 2 feedback or Assamese translation note',
+      subjectPlaceholder: 'e.g., Calculator feedback or Assamese translation note',
       messageLabel: 'Message',
       messagePlaceholder: 'Share your inquiry or suggestion (at least 10 characters)...',
-      submitBtn: 'Test Form Validation (Preview Only)',
+      submitBtn: 'Prepare Inquiry to Send',
       previewNotice:
-        'Phase 1 Notice: No backend server is connected yet, so submitting this form validates your inputs locally and does not send or store your message.',
-      successTitle: 'Preview Only — Message Not Sent',
+        'Frontend-only privacy: JyotishSetu does not store form submissions on a server. Submitting this form validates your message and prepares a ready-to-send email draft for your email app or clipboard.',
+      successTitle: 'Your Inquiry Is Ready to Send',
       successBody:
-        'Your inputs passed local form validation, but nothing was transmitted or saved because Phase 1 has no backend email service yet. For real inquiries, please write directly to namaste@jyotishsetu.in.',
-      sendAnotherBtn: 'Reset Preview Form',
+        'Review your formatted message below, then click "Open in Email App" to send it directly to namaste@jyotishsetu.in or copy the text to your clipboard.',
+      sendAnotherBtn: 'Draft Another Message',
       officeTitle: 'JyotishSetu Editorial Desk',
       officeBody:
         'Dedicated to preserving classical Indian Jyotish knowledge across regional languages with clarity and scholarly care.',
@@ -922,65 +932,65 @@ export const en: TranslationDictionary = {
     privacy: {
       kicker: 'Trust & Transparency',
       title: 'Privacy Policy',
-      updated: 'Phase 1 Foundation · Effective November 2026',
+      updated: 'Client-Side Edition · Effective November 2026',
       sections: [
         {
-          heading: '1. No Account or Database Collection in Phase 1',
-          body: 'JyotishSetu Phase 1 operates entirely as a front-end informational foundation. We do not maintain user accounts, external databases, payment gateways, or birth-chart servers at this stage.',
+          heading: '1. On-Device Astronomical Calculations',
+          body: 'All Kundli, Panchang, Ashtakoota Matching, Sade Sati, Mangal Dosha, Nakshatra, and Numerology calculations run locally inside your web browser. Your birth date, time, and coordinates are never uploaded to an external database.',
         },
         {
           heading: '2. Browser Local Storage',
-          body: 'To remember your chosen reading language (English, हिन्दी, or অসমীয়া) across page reloads, JyotishSetu stores a single preference key in your browser’s localStorage. No personal identifiers or tracking cookies are stored.',
+          body: 'To remember your chosen reading language (English, हिन्दी, or অসমীয়া) and preferred Panchang city across reloads, JyotishSetu stores only those lightweight preferences in your browser’s localStorage.',
         },
         {
-          heading: '3. Preview Forms',
-          body: 'Any contact or early-access email entries submitted during Phase 1 are validated locally in your browser to demonstrate interface behaviour and are not transmitted to third-party servers.',
+          heading: '3. No Accounts, Trackers, or Payments',
+          body: 'JyotishSetu does not require user accounts, does not collect payment details, and does not sell personal data. Contact inquiries open directly in your own email client.',
         },
         {
-          heading: '4. Future Phases',
-          body: 'When personalized Kundli calculations and optional reports are introduced in later phases, this Privacy Policy will be updated transparently before any birth details are processed.',
+          heading: '4. Policy Updates',
+          body: 'If optional server-side features are ever introduced in the future, this Privacy Policy will be updated transparently beforehand.',
         },
       ],
     },
     terms: {
       kicker: 'Platform Guidelines',
       title: 'Terms and Conditions',
-      updated: 'Phase 1 Foundation · Effective November 2026',
+      updated: 'Client-Side Edition · Effective November 2026',
       sections: [
         {
           heading: '1. Acceptance of Terms',
-          body: 'By browsing JyotishSetu, you agree to use this website and its educational Vedic astrology content respectfully and in accordance with applicable laws.',
+          body: 'By browsing JyotishSetu, you agree to use this website, its Vedic calculators, and its educational content respectfully and in accordance with applicable laws.',
         },
         {
-          heading: '2. Informational & Demonstration Nature',
-          body: 'Phase 1 showcases the structural, multilingual, and editorial foundation of JyotishSetu. Daily Horoscope readings and Today’s Panchang values are clearly labelled demonstration content until live astronomical calculation modules are released.',
+          heading: '2. Astronomical Methodology & Scope',
+          body: 'Planetary positions, Sunrise/Sunset, Panchang, and Dasha calculations use VSOP87/ELP astronomical models with Lahiri (Chitrapaksha) Ayanamsha. Horoscope interpretive notes offer general sign-level guidance alongside live computed transits.',
         },
         {
           heading: '3. Intellectual Property',
           body: 'All original copy, translations (English, Hindi, and Assamese), visual motifs, mandala artwork, and page layouts belong to JyotishSetu and may not be reproduced commercially without written permission.',
         },
         {
-          heading: '4. No Commercial Transactions Yet',
-          body: 'Premium services listed on JyotishSetu are marked Coming Soon. No purchases, subscriptions, or financial transactions are accepted on this site during Phase 1.',
+          heading: '4. Free Access',
+          body: 'All interactive calculators and essays on this site are provided free of charge with no active payment processing or subscription billing.',
         },
       ],
     },
     disclaimer: {
       kicker: 'Astrological Ethics',
       title: 'Disclaimer',
-      updated: 'Phase 1 Foundation · Effective November 2026',
+      updated: 'Client-Side Edition · Effective November 2026',
       sections: [
         {
           heading: '1. Cultural & Spiritual Guidance',
-          body: 'All Vedic astrology content, horoscope outlooks, Panchang explanations, and essays presented on JyotishSetu are intended for cultural study, personal reflection, and informational purposes.',
+          body: 'All Vedic astrology calculations, charts, horoscope outlooks, Panchang intervals, and essays presented on JyotishSetu are intended for cultural study, personal reflection, and informational purposes.',
         },
         {
           heading: '2. Not a Substitute for Professional Advice',
           body: 'Astrological insights should never replace qualified medical, legal, financial, or mental health counsel. Always consult certified professionals for critical life decisions.',
         },
         {
-          heading: '3. Demonstration Data Notice',
-          body: 'Panchang timings and daily zodiac forecasts in Phase 1 are illustrative demonstration entries and should not be used for time-critical ceremonial Muhurat decisions until our verified Phase 2 ephemeris engine launches.',
+          heading: '3. Ceremony & Regional Panchang Variations',
+          body: 'While Panchang and Muhurat timings are computed astronomically using Lahiri Ayanamsha, regional Sampradayas may observe minor local conventions for major life ceremonies. Consult a local Pandit when exact ritual observance is required.',
         },
       ],
     },
@@ -1009,6 +1019,6 @@ export const en: TranslationDictionary = {
       facebook: 'Facebook',
     },
     copyright: '© 2026 JyotishSetu. All rights reserved.',
-    phaseNotice: 'Phase 1 Website Foundation · Demonstration Panchang & Horoscope Preview',
+    phaseNotice: 'Live Sidereal Vedic Calculations · Lahiri (Chitrapaksha) Ayanamsha · Runs Privately in Your Browser',
   },
 };

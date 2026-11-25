@@ -22,7 +22,8 @@ export type ToolId =
   | 'numerology'
   | 'sade-sati'
   | 'mangal-dosha'
-  | 'nakshatra-finder';
+  | 'nakshatra-finder'
+  | 'muhurat-finder';
 
 export type BlogCategoryId = 'vedic' | 'nakshatra' | 'panchang' | 'festivals';
 
@@ -32,7 +33,7 @@ export interface ToolItem {
   subtitle: string;
   description: string;
   category: 'core' | 'dosha';
-  status: 'preview' | 'coming_soon';
+  status: 'live' | 'preview' | 'coming_soon';
   route: string;
 }
 

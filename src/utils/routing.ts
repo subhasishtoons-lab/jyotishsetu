@@ -9,7 +9,7 @@ export type RoutePage =
   | { kind: 'panchang' }
   | { kind: 'matching' }
   | { kind: 'numerology' }
-  | { kind: 'tools'; toolSlug?: 'sade-sati' | 'mangal-dosha' | 'nakshatra-finder' }
+  | { kind: 'tools'; toolSlug?: 'sade-sati' | 'mangal-dosha' | 'nakshatra-finder' | 'muhurat' }
   | { kind: 'blog'; slug?: string }
   | { kind: 'about' }
   | { kind: 'contact' }
@@ -36,6 +36,7 @@ const VALID_TOOL_SLUGS: ReadonlySet<string> = new Set([
   'sade-sati',
   'mangal-dosha',
   'nakshatra-finder',
+  'muhurat',
 ]);
 
 /**
@@ -115,13 +116,15 @@ export function parseRoute(pathname: string): RoutePage {
     return { kind: 'horoscope' };
   }
 
+  if (path === '/muhurat') return { kind: 'tools', toolSlug: 'muhurat' };
+
   if (path === '/tools') return { kind: 'tools' };
   if (path.startsWith('/tools/')) {
     const slug = path.slice('/tools/'.length);
     if (VALID_TOOL_SLUGS.has(slug)) {
       return {
         kind: 'tools',
-        toolSlug: slug as 'sade-sati' | 'mangal-dosha' | 'nakshatra-finder',
+        toolSlug: slug as 'sade-sati' | 'mangal-dosha' | 'nakshatra-finder' | 'muhurat',
       };
     }
     return { kind: 'tools' };
