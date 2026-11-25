@@ -1,6 +1,8 @@
+
 import type { ZodiacId } from '../i18n/types';
 
-export const BASE_PATH = '/jyotishsetu';
+// Custom domain uses the website root.
+export const BASE_PATH = '/';
 
 export type RoutePage =
   | { kind: 'home' }
@@ -40,23 +42,17 @@ const VALID_TOOL_SLUGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Strips query/hash, collapses redundant slashes, removes the GitHub Pages
- * `/jyotishsetu` project prefix if present, and returns the canonical
- * app-relative path (`/` for homepage, `/kundli`, `/horoscope/simha`, etc.).
+ * Normalizes a URL into an app-relative path.
+ * Examples: / -> /, /kundli -> /kundli.
  */
 export function stripBasePath(rawPath: string): string {
   const withoutQuery = rawPath.split('?')[0]?.split('#')[0] ?? '/';
   const collapsed = withoutQuery.replace(/\/{2,}/g, '/');
-  const ensuredLeading = collapsed.startsWith('/') ? collapsed : `/${collapsed}`;
+  const ensuredLeading = collapsed.startsWith('/')
+    ? collapsed
+    : `/${collapsed}`;
 
-  let stripped = ensuredLeading;
-  if (stripped === BASE_PATH || stripped === `${BASE_PATH}/`) {
-    stripped = '/';
-  } else if (stripped.startsWith(`${BASE_PATH}/`)) {
-    stripped = stripped.slice(BASE_PATH.length);
-  }
-
-  const trimmed = stripped.replace(/\/+$/, '');
+  const trimmed = ensuredLeading.replace(/\/+$/, '');
   return trimmed === '' ? '/' : trimmed;
 }
 
@@ -65,29 +61,32 @@ export function normalizePathname(rawPath: string): string {
 }
 
 /**
- * Converts any internal route (app-relative like `/kundli` or already prefixed
- * like `/jyotishsetu/kundli`) into the canonical GitHub Pages URL:
- * - Homepage -> `/jyotishsetu/`
- * - Subpages -> `/jyotishsetu/<subpath>`
+ * Custom-domain URLs use root-relative paths.
+ * Homepage -> /
+ * Subpages -> /kundli, /panchang, etc.
  */
 export function withBasePath(appPath: string): string {
-  const relative = stripBasePath(appPath);
-  return relative === '/' ? `${BASE_PATH}/` : `${BASE_PATH}${relative}`;
+  return stripBasePath(appPath);
 }
 
 /**
- * Decodes a GitHub Pages 404.html fallback redirect (`?p=/kundli&q=...`)
- * into a clean `/jyotishsetu/...` URL path + query string.
+ * Restores a route from the GitHub Pages 404.html fallback.
  */
-export function resolveGitHubPagesRedirect(search: string, hash = ''): string | null {
+export function resolveGitHubPagesRedirect(
+  search: string,
+  hash = '',
+): string | null {
   if (!search || !search.includes('p=')) return null;
+
   try {
     const params = new URLSearchParams(search);
     const rawPath = params.get('p');
     if (!rawPath) return null;
+
     const targetPath = withBasePath(rawPath);
     const rawQuery = params.get('q');
     const queryPart = rawQuery ? `?${rawQuery}` : '';
+
     return `${targetPath}${queryPart}${hash}`;
   } catch {
     return null;
@@ -96,6 +95,7 @@ export function resolveGitHubPagesRedirect(search: string, hash = ''): string | 
 
 export function parseRoute(pathname: string): RoutePage {
   const path = stripBasePath(pathname);
+
   if (path === '/') return { kind: 'home' };
   if (path === '/kundli') return { kind: 'kundli' };
   if (path === '/panchang') return { kind: 'panchang' };
@@ -108,6 +108,7 @@ export function parseRoute(pathname: string): RoutePage {
   if (path === '/disclaimer') return { kind: 'disclaimer' };
 
   if (path === '/horoscope') return { kind: 'horoscope' };
+
   if (path.startsWith('/horoscope/')) {
     const sign = path.slice('/horoscope/'.length);
     if (VALID_ZODIACS.has(sign)) {
@@ -116,21 +117,29 @@ export function parseRoute(pathname: string): RoutePage {
     return { kind: 'horoscope' };
   }
 
-  if (path === '/muhurat') return { kind: 'tools', toolSlug: 'muhurat' };
+  if (path === '/muhurat') {
+    return { kind: 'tools', toolSlug: 'muhurat' };
+  }
 
   if (path === '/tools') return { kind: 'tools' };
+
   if (path.startsWith('/tools/')) {
     const slug = path.slice('/tools/'.length);
     if (VALID_TOOL_SLUGS.has(slug)) {
       return {
         kind: 'tools',
-        toolSlug: slug as 'sade-sati' | 'mangal-dosha' | 'nakshatra-finder' | 'muhurat',
+        toolSlug: slug as
+          | 'sade-sati'
+          | 'mangal-dosha'
+          | 'nakshatra-finder'
+          | 'muhurat',
       };
     }
     return { kind: 'tools' };
   }
 
   if (path === '/blog') return { kind: 'blog' };
+
   if (path.startsWith('/blog/')) {
     const slug = path.slice('/blog/'.length);
     if (slug.length > 0) {
