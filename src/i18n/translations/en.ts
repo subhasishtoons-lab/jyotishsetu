@@ -730,7 +730,7 @@ export const en: TranslationDictionary = {
       ],
       methodologyTitle: 'Classical Parashari Foundation',
       methodologyBody:
-        'This Kundli engine follows Brihat Parashara Hora Shastra with True Chitrapaksha (Lahiri) Ayanamsha and topocentric coordinates so every ascendant degree, house placement, and Vimshottari Dasha period remains faithful to Indian tradition.',
+        'This Kundli engine follows Brihat Parashara Hora Shastra using geocentric planetary longitudes, Lahiri (Chitrapaksha) Ayanamsha, Mean Node Rahu and Ketu, and your birthplace geographic coordinates for the local Lagna (Ascendant) and whole-sign houses, keeping every planetary degree and Vimshottari Dasha period faithful to Indian tradition.',
     },
     matching: {
       id: 'matching',
