@@ -6,7 +6,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/jyotishsetu/',
+    base: '/',
     plugins: [
       react(),
       tailwindcss(),
