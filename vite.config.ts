@@ -14,31 +14,36 @@ export default defineConfig(() => {
       // non-prefixed HTML requests to "/jyotishsetu/" so the app loads cleanly
       // under its GitHub Pages project base path.
       {
-        name: 'redirect-root-to-base',
-        apply: 'serve',
-        configureServer(server) {
-          server.middlewares.use((req, res, next) => {
-            const url = req.url ?? '/';
-            if (
-              url === '/' ||
-              url.startsWith('/?') ||
-              (!url.startsWith('/jyotishsetu') &&
-                !url.startsWith('/@') &&
-                !url.startsWith('/node_modules') &&
-                !url.startsWith('/src') &&
-                !url.includes('.'))
-            ) {
-              const target =
-                url === '/'
-                  ? '/jyotishsetu/'
-                  : url.startsWith('/?')
-                    ? `/jyotishsetu/${url.slice(1)}`
-                    : `/jyotishsetu${url}`;
-              res.statusCode = 302;
-              res.setHeader('Location', target);
-              res.end();
-              return;
-            }
+{
+  name: 'redirect-root-to-base',
+  apply: 'serve',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = req.url ?? '/';
+      if (
+        url === '/' ||
+        url.startsWith('/?') ||
+        (!url.startsWith('/jyotishsetu') &&
+          !url.startsWith('/@') &&
+          !url.startsWith('/node_modules') &&
+          !url.startsWith('/src') &&
+          !url.includes('.'))
+      ) {
+        const target =
+          url === '/'
+            ? '/jyotishsetu/'
+            : url.startsWith('/?')
+              ? `/jyotishsetu/${url.slice(1)}`
+              : `/jyotishsetu${url}`;
+        res.statusCode = 302;
+        res.setHeader('Location', target);
+        res.end();
+        return;
+      }
+      next();
+    });
+  },
+},
             next();
           });
         },
