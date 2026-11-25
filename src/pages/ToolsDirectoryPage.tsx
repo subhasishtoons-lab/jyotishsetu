@@ -15,6 +15,7 @@ import { useLanguage } from '../context/LanguageContext';
 import type { ToolId } from '../i18n/types';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
+import { ShaniRingIcon } from '../components/artwork/ShaniRingIcon';
 
 const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>> = {
   'free-kundli': Compass,
@@ -27,31 +28,6 @@ const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>>
   'nakshatra-finder': Sparkles,
   'muhurat-finder': Clock,
 };
-
-function ShaniRingIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="5" />
-      <ellipse
-        cx="12"
-        cy="12"
-        rx="10"
-        ry="3.6"
-        transform="rotate(-24 12 12)"
-      />
-      <circle cx="19" cy="6" r="1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
 
 type ToolFilter = 'all' | 'core' | 'dosha';
 
@@ -70,7 +46,7 @@ export function ToolsDirectoryPage() {
   const renderShaniDhaiyaCard = () => (
     <article
       key="shani-dhaiya"
-      className="group relative flex flex-col justify-between p-6 rounded-lg bg-gradient-to-b from-[#FCF7EE] to-[#F3E9D8] border border-[#2C2F4C]/30 border-t-2 border-t-[#2C2F4C] hover:border-[#B08532] hover:border-t-[#B08532] hover:-translate-y-0.5 transition-all duration-150"
+      className="group relative flex flex-col justify-between p-6 rounded-lg bg-gradient-to-b from-[#FCF7EE] to-[#F3E9D8] border border-[#2C2F4C]/30 border-t-2 border-t-[#2C2F4C] hover:border-[#B08532] hover:border-t-[#B08532] transition-colors duration-150"
     >
       <div>
         <div className="flex items-center justify-between gap-3">
@@ -102,10 +78,7 @@ export function ToolsDirectoryPage() {
           className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/50 hover:bg-[#4A1820] text-xs font-semibold tracking-wide transition-colors"
         >
           <span>{dhaiyaCard.openButton}</span>
-          <ArrowRight
-            className="w-3.5 h-3.5 text-[#EBD08D] transition-transform duration-150 group-hover:translate-x-0.5"
-            aria-hidden="true"
-          />
+          <ArrowRight className="w-3.5 h-3.5 text-[#EBD08D]" aria-hidden="true" />
         </Link>
       </div>
     </article>
@@ -163,7 +136,7 @@ export function ToolsDirectoryPage() {
               <React.Fragment key={tool.id}>
                 <Link
                   to={tool.route}
-                  className="group flex flex-col justify-between p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:-translate-y-0.5 transition-all duration-150"
+                  className="group flex flex-col justify-between p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:bg-white transition-colors duration-150"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-3">
@@ -192,10 +165,7 @@ export function ToolsDirectoryPage() {
                     <span>
                       {isAvailable ? t.quickTools.openTool : t.quickTools.openComingSoon}
                     </span>
-                    <ArrowRight
-                      className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
+                    <ArrowRight className="w-3.5 h-3.5 text-[#C47616]" aria-hidden="true" />
                   </div>
                 </Link>
                 {showShaniDhaiyaCard && tool.id === 'sade-sati' && renderShaniDhaiyaCard()}

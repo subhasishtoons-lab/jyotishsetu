@@ -335,6 +335,17 @@ export interface TranslationDictionary {
     subjectRequired: string;
     messageRequired: string;
   };
+  trustNotice: {
+    kicker: string;
+    title: string;
+    subtitle: string;
+    cards: Array<{
+      id: 'belief' | 'methodology' | 'privacy';
+      title: string;
+      body: string;
+    }>;
+    readPoliciesLabel: string;
+  };
   footer: {
     exploreHeading: string;
     toolsHeading: string;

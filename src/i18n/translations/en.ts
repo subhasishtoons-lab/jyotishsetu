@@ -925,10 +925,10 @@ export const en: TranslationDictionary = {
       messagePlaceholder: 'Share your inquiry or suggestion (at least 10 characters)...',
       submitBtn: 'Prepare Inquiry to Send',
       previewNotice:
-        'Frontend-only privacy: JyotishSetu does not store form submissions on a server. Submitting this form validates your message and prepares a ready-to-send email draft for your email app or clipboard.',
-      successTitle: 'Your Inquiry Is Ready to Send',
+        'Frontend-only privacy: JyotishSetu does not transmit or store form data on any server. Clicking the button below validates your message locally and prepares an email draft for your email app or clipboard.',
+      successTitle: 'Your Inquiry Draft Is Ready',
       successBody:
-        'Review your formatted message below, then click "Open in Email App" to send it directly to namaste@jyotishsetu.in or copy the text to your clipboard.',
+        'No data has been transmitted. Review your formatted message below, then click "Open in Email App" to send it directly to namaste@jyotishsetu.in or copy the text to your clipboard.',
       sendAnotherBtn: 'Draft Another Message',
       officeTitle: 'JyotishSetu Editorial Desk',
       officeBody:
@@ -944,11 +944,11 @@ export const en: TranslationDictionary = {
       sections: [
         {
           heading: '1. On-Device Astronomical Calculations',
-          body: 'All Kundli, Panchang, Ashtakoota Matching, Sade Sati, Mangal Dosha, Nakshatra, and Numerology calculations run locally inside your web browser. Your birth date, time, and coordinates are never uploaded to an external database.',
+          body: 'All Kundli, Panchang, Ashtakoota Matching, Sade Sati, Shani Dhaiya, Mangal Dosha, Nakshatra, and Numerology calculations run locally inside your web browser. Your birth date, time, and coordinates are never transmitted to or stored on any server.',
         },
         {
           heading: '2. Browser Local Storage',
-          body: 'To remember your chosen reading language (English, हिन्दी, or অসমীয়া) and preferred Panchang city across reloads, JyotishSetu stores only those lightweight preferences in your browser’s localStorage.',
+          body: 'To remember your chosen reading language (English, हिन्दी, or অসমীয়া) and preferred Panchang city across reloads, JyotishSetu stores only those two lightweight preferences in your browser’s localStorage—never your personal birth details.',
         },
         {
           heading: '3. No Accounts, Trackers, or Payments',
@@ -971,7 +971,7 @@ export const en: TranslationDictionary = {
         },
         {
           heading: '2. Astronomical Methodology & Scope',
-          body: 'Planetary positions, Sunrise/Sunset, Panchang, and Dasha calculations use VSOP87/ELP astronomical models with Lahiri (Chitrapaksha) Ayanamsha. Horoscope interpretive notes offer general sign-level guidance alongside live computed transits.',
+          body: 'Planetary longitudes are computed geocentrically using VSOP87/ELP astronomical models with Lahiri (Chitrapaksha) Ayanamsha, Rahu and Ketu follow the Mean Node convention, and birthplace coordinates determine the local Ascendant. Horoscope interpretive notes offer general sign-level guidance alongside live computed transits.',
         },
         {
           heading: '3. Intellectual Property',
@@ -984,20 +984,24 @@ export const en: TranslationDictionary = {
       ],
     },
     disclaimer: {
-      kicker: 'Astrological Ethics',
+      kicker: 'Astrological Ethics & Transparency',
       title: 'Disclaimer',
       updated: 'Client-Side Edition · Effective November 2026',
       sections: [
         {
-          heading: '1. Cultural & Spiritual Guidance',
-          body: 'All Vedic astrology calculations, charts, horoscope outlooks, Panchang intervals, and essays presented on JyotishSetu are intended for cultural study, personal reflection, and informational purposes.',
+          heading: '1. Traditional Belief System & Non-Scientific Nature',
+          body: 'Jyotish (Vedic astrology) is a traditional Indian cultural and spiritual belief system, and its interpretive predictions are not scientifically established. All charts, horoscope outlooks, Panchang notes, and essays on JyotishSetu are offered strictly for cultural study, personal reflection, and informational purposes.',
         },
         {
           heading: '2. Not a Substitute for Professional Advice',
-          body: 'Astrological insights should never replace qualified medical, legal, financial, or mental health counsel. Always consult certified professionals for critical life decisions.',
+          body: 'Astrological guidance must never replace qualified medical, financial, legal, or mental health advice. Always consult certified doctors, financial planners, attorneys, or counsellors before making critical life decisions.',
         },
         {
-          heading: '3. Ceremony & Regional Panchang Variations',
+          heading: '3. Astronomical Conventions & Calculation Transparency',
+          body: 'Planetary longitudes in JyotishSetu are computed geocentrically using the sidereal Lahiri (Chitrapaksha) Ayanamsha, Rahu and Ketu follow the classical Mean Node convention, and your selected birthplace coordinates determine the local Ascendant (Lagna) and local Sunrise/Sunset timings. These browser-based calculations are internally verified against astronomical ephemeris routines and are not independently certified against Swiss Ephemeris.',
+        },
+        {
+          heading: '4. Ceremony & Regional Panchang Variations',
           body: 'While Panchang and Muhurat timings are computed astronomically using Lahiri Ayanamsha, regional Sampradayas may observe minor local conventions for major life ceremonies. Consult a local Pandit when exact ritual observance is required.',
         },
       ],
@@ -1009,6 +1013,30 @@ export const en: TranslationDictionary = {
     emailInvalid: 'Please enter a valid email address.',
     subjectRequired: 'Please enter a brief subject.',
     messageRequired: 'Please write a message of at least 10 characters.',
+  },
+  trustNotice: {
+    kicker: 'Trust, Methodology & Ethics',
+    title: 'Transparent Astrology Disclaimer & Local Privacy',
+    subtitle:
+      'Every calculator on JyotishSetu is built around clear astronomical conventions, honest ethical boundaries, and browser-only privacy.',
+    cards: [
+      {
+        id: 'belief',
+        title: 'Traditional Belief System & Advisory Notice',
+        body: 'Jyotish is a traditional cultural belief system and its predictions are not scientifically established. Astrological guidance is for cultural reflection only and must not replace qualified medical, financial, or legal advice.',
+      },
+      {
+        id: 'methodology',
+        title: 'Geocentric Longitudes, Mean Node & Local Lagna',
+        body: 'Planetary longitudes are calculated geocentrically with Lahiri (Chitrapaksha) Ayanamsha, Rahu and Ketu follow the Mean Node convention, and your birthplace coordinates determine the local Ascendant (Lagna).',
+      },
+      {
+        id: 'privacy',
+        title: '100% Local Browser Privacy',
+        body: 'Your birth date, time, and birthplace are calculated directly in your browser—never transmitted to any server or stored in a database. Only language and Panchang city preferences are remembered locally.',
+      },
+    ],
+    readPoliciesLabel: 'Read full ethical and privacy documentation:',
   },
   footer: {
     exploreHeading: 'Explore JyotishSetu',

@@ -167,9 +167,26 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#F8F0E3]/70 leading-relaxed">
-          <p className="shrink-0">{t.footer.copyright}</p>
-          <p className="sm:text-right">{t.footer.phaseNotice}</p>
+        <div className="pt-6 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 text-xs text-[#F8F0E3]/75 leading-relaxed">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <p className="shrink-0">{t.footer.copyright}</p>
+            <span className="text-[#D8AD59]/40 hidden sm:inline" aria-hidden="true">
+              ·
+            </span>
+            <Link
+              to="/privacy"
+              className="text-[#EBD08D]/90 hover:text-[#F8F0E3] underline underline-offset-4 decoration-[#D8AD59]/50 transition-colors"
+            >
+              {t.footer.privacyPolicy}
+            </Link>
+            <Link
+              to="/disclaimer"
+              className="text-[#EBD08D]/90 hover:text-[#F8F0E3] underline underline-offset-4 decoration-[#D8AD59]/50 transition-colors"
+            >
+              {t.footer.disclaimer}
+            </Link>
+          </div>
+          <p className="lg:text-right text-[#F8F0E3]/70">{t.footer.phaseNotice}</p>
         </div>
       </div>
     </footer>

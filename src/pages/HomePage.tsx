@@ -14,6 +14,8 @@ import {
   Clock,
   Info,
   CheckCircle2,
+  Scale,
+  ShieldCheck,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -42,6 +44,7 @@ import { VedicMandalaArtwork } from '../components/artwork/VedicMandalaArtwork';
 import { NavagrahaDiagram } from '../components/artwork/NavagrahaDiagram';
 import { ZodiacEmblem } from '../components/artwork/ZodiacEmblems';
 import { BlogEditorialArt } from '../components/artwork/BlogEditorialArt';
+import { ShaniRingIcon } from '../components/artwork/ShaniRingIcon';
 
 const TOOL_ICON_MAP: Record<ToolId, React.ComponentType<{ className?: string }>> = {
   'free-kundli': Compass,
@@ -199,25 +202,25 @@ export function HomePage() {
           <VedicMandalaArtwork className="w-full h-full" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24">
-          <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-12 lg:gap-10">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-22">
+          <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-10 lg:gap-10">
             <div className="lg:col-span-7 max-w-2xl">
               <p className="text-xs sm:text-[13px] font-medium tracking-[0.14em] text-[#EBD08D]">
                 {t.hero.kicker}
               </p>
 
-              <h1 className="mt-4 font-display text-[2.35rem] sm:text-5xl lg:text-[3.5rem] font-semibold leading-[1.12] tracking-tight text-[#F8F0E3] [text-wrap:balance]">
+              <h1 className="mt-3.5 font-display text-[2.1rem] sm:text-5xl lg:text-[3.35rem] font-semibold leading-[1.14] tracking-tight text-[#F8F0E3] [text-wrap:balance]">
                 {t.hero.headline}
               </h1>
 
-              <p className="mt-5 text-base sm:text-lg leading-relaxed text-[#F8F0E3]/85 max-w-xl">
+              <p className="mt-4 sm:mt-5 text-[15px] sm:text-lg leading-relaxed text-[#F8F0E3]/85 max-w-xl">
                 {t.hero.description}
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-4">
+              <div className="mt-7 sm:mt-8 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3.5 sm:gap-4">
                 <Link
                   to="/kundli"
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-all whitespace-nowrap shadow-md"
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-colors whitespace-nowrap shadow-sm"
                 >
                   <span>{t.hero.primaryCta}</span>
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -254,10 +257,10 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* 2. QUICK ASTROLOGY TOOLS (ALL 9 LIVE INTERACTIVE TOOLS) */}
-      <section id="astrology-tools" className="py-16 sm:py-20 bg-[#F8F0E3]">
+      {/* 2. QUICK ASTROLOGY TOOLS (ALL 10 LIVE INTERACTIVE CARDS, INCLUDING SHANI DHAIYA) */}
+      <section id="astrology-tools" className="py-14 sm:py-18 lg:py-20 bg-[#F8F0E3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
             <SectionHeading
               kicker={t.quickTools.kicker}
               title={t.quickTools.title}
@@ -273,51 +276,134 @@ export function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="mt-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {t.quickTools.items.map((tool) => {
               const Icon = TOOL_ICON_MAP[tool.id];
               const isAvailable = tool.status === 'live' || tool.status === 'preview';
+              const dhaiyaCard = t.toolsPage.shaniDhaiyaCard;
+              const isWideRowOnDesktop = tool.id === 'muhurat-finder';
               return (
-                <Link
-                  key={tool.id}
-                  to={tool.route}
-                  className="group flex flex-col justify-between p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:-translate-y-0.5 transition-all duration-150"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="w-10 h-10 rounded-md bg-[#351016] text-[#EBD08D] flex items-center justify-center shrink-0">
-                        <Icon className="w-5 h-5" aria-hidden="true" />
-                      </div>
-                      <span
-                        className={`text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
-                          isAvailable
-                            ? 'bg-[#2B5A3C]/10 border-[#2B5A3C]/35 text-[#2B5A3C]'
-                            : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
+                <React.Fragment key={tool.id}>
+                  <Link
+                    to={tool.route}
+                    className={`group flex flex-col justify-between p-5 sm:p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:bg-white transition-colors duration-150 ${
+                      isWideRowOnDesktop
+                        ? 'lg:col-span-3 lg:flex-row lg:items-center lg:gap-8'
+                        : ''
+                    }`}
+                  >
+                    <div className={isWideRowOnDesktop ? 'lg:flex lg:items-center lg:gap-5 lg:flex-1' : ''}>
+                      <div
+                        className={`flex items-center justify-between gap-3 ${
+                          isWideRowOnDesktop ? 'lg:block' : ''
                         }`}
                       >
-                        {isAvailable ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
-                      </span>
+                        <div className="w-10 h-10 rounded-md bg-[#351016] text-[#EBD08D] flex items-center justify-center shrink-0">
+                          <Icon className="w-5 h-5" aria-hidden="true" />
+                        </div>
+                        <span
+                          className={`text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
+                            isWideRowOnDesktop ? 'lg:hidden' : ''
+                          } ${
+                            isAvailable
+                              ? 'bg-[#2B5A3C]/10 border-[#2B5A3C]/35 text-[#2B5A3C]'
+                              : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
+                          }`}
+                        >
+                          {isAvailable ? t.quickTools.statusPreview : t.quickTools.statusComingSoon}
+                        </span>
+                      </div>
+
+                      <div className={isWideRowOnDesktop ? 'mt-4 lg:mt-0 lg:flex-1' : ''}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p
+                            className={`${
+                              isWideRowOnDesktop ? 'mt-0' : 'mt-4'
+                            } text-xs text-[#8C5320] font-medium`}
+                          >
+                            {tool.subtitle}
+                          </p>
+                          {isWideRowOnDesktop && (
+                            <span
+                              className={`hidden lg:inline-block text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border ${
+                                isAvailable
+                                  ? 'bg-[#2B5A3C]/10 border-[#2B5A3C]/35 text-[#2B5A3C]'
+                                  : 'bg-[#351016]/6 border-[#542D24]/25 text-[#542D24]'
+                              }`}
+                            >
+                              {isAvailable
+                                ? t.quickTools.statusPreview
+                                : t.quickTools.statusComingSoon}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="mt-1 font-display text-lg font-semibold text-[#351016] group-hover:text-[#7C3A12] transition-colors">
+                          {tool.title}
+                        </h3>
+                        <p className="mt-1.5 text-sm text-[#542D24] leading-relaxed">
+                          {tool.description}
+                        </p>
+                      </div>
                     </div>
 
-                    <p className="mt-4 text-xs text-[#8C5320] font-medium">{tool.subtitle}</p>
-                    <h3 className="mt-1 font-display text-lg font-semibold text-[#351016] group-hover:text-[#7C3A12] transition-colors">
-                      {tool.title}
-                    </h3>
-                    <p className="mt-2 text-sm text-[#542D24] leading-relaxed">
-                      {tool.description}
-                    </p>
-                  </div>
+                    <div
+                      className={`mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016] ${
+                        isWideRowOnDesktop
+                          ? 'lg:mt-0 lg:pt-0 lg:border-t-0 lg:shrink-0 lg:gap-2 lg:px-4 lg:py-2.5 lg:rounded-md lg:border lg:border-[#D8AD59]/45 lg:bg-[#F8F0E3]'
+                          : ''
+                      }`}
+                    >
+                      <span>
+                        {isAvailable ? t.quickTools.openTool : t.quickTools.openComingSoon}
+                      </span>
+                      <ArrowRight
+                        className="w-3.5 h-3.5 text-[#C47616]"
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </Link>
 
-                  <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/20 flex items-center justify-between text-xs font-semibold text-[#351016]">
-                    <span>
-                      {isAvailable ? t.quickTools.openTool : t.quickTools.openComingSoon}
-                    </span>
-                    <ArrowRight
-                      className="w-3.5 h-3.5 text-[#C47616] transition-transform duration-150 group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
-                  </div>
-                </Link>
+                  {tool.id === 'sade-sati' && (
+                    <article
+                      key="shani-dhaiya"
+                      className="group flex flex-col justify-between p-5 sm:p-6 rounded-lg bg-gradient-to-b from-[#FCF7EE] to-[#F3E9D8] border border-[#2C2F4C]/30 border-t-2 border-t-[#2C2F4C] hover:border-[#B08532] hover:border-t-[#B08532] transition-colors duration-150"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="w-10 h-10 rounded-md bg-gradient-to-br from-[#1C1F38] via-[#2B1830] to-[#351016] text-[#EBD08D] border border-[#D8AD59]/50 flex items-center justify-center shrink-0">
+                            <ShaniRingIcon className="w-5 h-5" />
+                          </div>
+                          <span className="text-[11px] font-semibold tracking-wide px-2 py-0.5 rounded border bg-[#2C2F4C]/10 border-[#2C2F4C]/30 text-[#252847]">
+                            {t.quickTools.statusPreview}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-xs font-semibold tracking-wide text-[#2C2F4C]">
+                          {dhaiyaCard.kicker}
+                        </p>
+                        <h3 className="mt-1 font-display text-lg font-semibold text-[#351016] group-hover:text-[#7C3A12] transition-colors">
+                          {dhaiyaCard.title}
+                        </h3>
+                        <p className="mt-1.5 text-sm font-medium text-[#3B2621] leading-snug">
+                          {dhaiyaCard.subtitle}
+                        </p>
+                        <p className="mt-2 text-xs sm:text-sm text-[#542D24] leading-relaxed">
+                          {dhaiyaCard.description}
+                        </p>
+                      </div>
+
+                      <div className="mt-5 pt-3.5 border-t border-[#D8AD59]/30">
+                        <Link
+                          to="/tools/sade-sati"
+                          className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/50 hover:bg-[#4A1820] text-xs font-semibold tracking-wide transition-colors"
+                        >
+                          <span>{dhaiyaCard.openButton}</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-[#EBD08D]" aria-hidden="true" />
+                        </Link>
+                      </div>
+                    </article>
+                  )}
+                </React.Fragment>
               );
             })}
           </div>
@@ -353,7 +439,7 @@ export function HomePage() {
               </span>
               <span className="text-[#F8F0E3]/90">
                 {selectedCity.names[language]}, {selectedCity.regions[language]} (
-                {selectedCity.timezone})
+                {activeTimezoneLabel})
               </span>
             </div>
             <div className="text-xs text-[#EBD08D]">
@@ -418,17 +504,17 @@ export function HomePage() {
             </p>
           </div>
 
-          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3.5 sm:gap-4">
             {t.horoscope.signs.map((sign) => (
               <Link
                 key={sign.id}
                 to={`/horoscope/${sign.id}`}
-                className="group flex flex-col items-center text-center p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:bg-white transition-all duration-150"
+                className="group flex flex-col items-center text-center p-4 sm:p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] hover:bg-white transition-colors duration-150"
               >
-                <div className="w-14 h-14 rounded-full bg-[#351016] text-[#EBD08D] flex items-center justify-center group-hover:scale-105 transition-transform duration-150">
-                  <ZodiacEmblem sign={sign.id} className="w-10 h-10" />
+                <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-[#351016] text-[#EBD08D] flex items-center justify-center">
+                  <ZodiacEmblem sign={sign.id} className="w-9 h-9 sm:w-10 sm:h-10" />
                 </div>
-                <h3 className="mt-3.5 font-display text-base font-semibold text-[#351016]">
+                <h3 className="mt-3 font-display text-sm sm:text-base font-semibold text-[#351016]">
                   {sign.name}
                 </h3>
                 <p className="mt-0.5 text-[11px] text-[#8C5320] font-medium">{sign.vedicName}</p>
@@ -570,10 +656,7 @@ export function HomePage() {
                   </p>
                   <div className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#EBD08D]">
                     <span>{t.quickTools.openTool}</span>
-                    <ArrowRight
-                      className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1"
-                      aria-hidden="true"
-                    />
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                   </div>
                 </Link>
               ))}
@@ -583,9 +666,9 @@ export function HomePage() {
       </section>
 
       {/* 7. BLOG SECTION */}
-      <section className="py-16 sm:py-20 bg-[#F8F0E3]">
+      <section className="py-14 sm:py-18 lg:py-20 bg-[#F8F0E3]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5">
             <SectionHeading
               kicker={t.blog.kicker}
               title={t.blog.title}
@@ -601,17 +684,14 @@ export function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="mt-9 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
             {t.blog.articles.map((article) => (
               <article
                 key={article.slug}
                 className="group flex flex-col rounded-lg overflow-hidden bg-[#FDF9F2] border border-[#D8AD59]/35 hover:border-[#B08532] transition-colors"
               >
                 <Link to={`/blog/${article.slug}`} className="block aspect-[3/2] overflow-hidden">
-                  <BlogEditorialArt
-                    artworkId={article.artworkId}
-                    className="w-full h-full transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
+                  <BlogEditorialArt artworkId={article.artworkId} className="w-full h-full" />
                 </Link>
 
                 <div className="p-5 flex-1 flex flex-col justify-between">
@@ -643,6 +723,82 @@ export function HomePage() {
                 </div>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 8. TRUST, METHODOLOGY, PRIVACY & ASTROLOGY DISCLAIMER */}
+      <section
+        aria-labelledby="trust-disclaimer-heading"
+        className="py-14 sm:py-16 bg-[#EFE3CE]/75 border-t border-[#D8AD59]/35"
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium tracking-[0.14em] text-[#8C5320]">
+              {t.trustNotice.kicker}
+            </p>
+            <h2
+              id="trust-disclaimer-heading"
+              className="mt-2 font-display text-2xl sm:text-3xl font-semibold text-[#351016] leading-tight [text-wrap:balance]"
+            >
+              {t.trustNotice.title}
+            </h2>
+            <p className="mt-2.5 text-sm sm:text-[15px] text-[#542D24] leading-relaxed">
+              {t.trustNotice.subtitle}
+            </p>
+          </div>
+
+          <div className="mt-7 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {t.trustNotice.cards.map((card) => {
+              const CardIcon =
+                card.id === 'belief'
+                  ? Scale
+                  : card.id === 'methodology'
+                    ? Compass
+                    : ShieldCheck;
+              return (
+                <div
+                  key={card.id}
+                  className="p-5 sm:p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40 flex flex-col"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-md bg-[#351016] text-[#EBD08D] flex items-center justify-center shrink-0">
+                      <CardIcon className="w-4 h-4" aria-hidden="true" />
+                    </div>
+                    <h3 className="font-display text-base font-semibold text-[#351016] leading-snug">
+                      {card.title}
+                    </h3>
+                  </div>
+                  <p className="mt-3 text-xs sm:text-sm text-[#542D24] leading-relaxed">
+                    {card.body}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-[#D8AD59]/35 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-[#542D24]">
+            <span className="font-medium text-[#351016]">{t.trustNotice.readPoliciesLabel}</span>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <Link
+                to="/disclaimer"
+                className="font-semibold text-[#351016] hover:text-[#8C5320] underline underline-offset-4 decoration-[#D8AD59] transition-colors"
+              >
+                {t.footer.disclaimer}
+              </Link>
+              <Link
+                to="/privacy"
+                className="font-semibold text-[#351016] hover:text-[#8C5320] underline underline-offset-4 decoration-[#D8AD59] transition-colors"
+              >
+                {t.footer.privacyPolicy}
+              </Link>
+              <Link
+                to="/terms"
+                className="font-semibold text-[#351016] hover:text-[#8C5320] underline underline-offset-4 decoration-[#D8AD59] transition-colors"
+              >
+                {t.footer.termsAndConditions}
+              </Link>
+            </div>
           </div>
         </div>
       </section>

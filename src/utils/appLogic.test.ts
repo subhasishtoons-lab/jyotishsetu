@@ -1165,3 +1165,49 @@ test('Full Audit 6: Numerology non-Latin name handling, leap-day clamping, Naksh
   assert.equal(formatDMS(29.996), '29°59′');
 });
 
+test('Trust, disclaimer transparency, and trilingual orthography checks', () => {
+  for (const code of ['en', 'hi', 'as'] as const) {
+    const dict = getDictionary(code);
+    assert.ok(dict.trustNotice.title.length > 0, `${code}: trustNotice title`);
+    assert.deepEqual(
+      dict.trustNotice.cards.map((c) => c.id),
+      ['belief', 'methodology', 'privacy'],
+      `${code}: trustNotice card ids`,
+    );
+    for (const card of dict.trustNotice.cards) {
+      assert.ok(card.title.length > 0 && card.body.length > 40, `${code}: ${card.id} content`);
+    }
+    assert.ok(dict.infoPages.disclaimer.sections.length >= 4, `${code}: disclaimer sections`);
+  }
+
+  // English trust & disclaimer explicitly cover traditional belief, non-scientific nature,
+  // no medical/financial/legal substitute, geocentric + Mean Node + birthplace Ascendant,
+  // and no false Swiss Ephemeris certification claim.
+  const enTrustText = JSON.stringify(TRANSLATIONS.en.trustNotice).toLowerCase();
+  const enDisclaimerText = JSON.stringify(TRANSLATIONS.en.infoPages.disclaimer).toLowerCase();
+  assert.ok(enTrustText.includes('traditional') && enTrustText.includes('not scientifically established'));
+  assert.ok(
+    enTrustText.includes('medical') &&
+      enTrustText.includes('financial') &&
+      enTrustText.includes('legal'),
+  );
+  assert.ok(
+    enTrustText.includes('geocentric') &&
+      enTrustText.includes('mean node') &&
+      enTrustText.includes('birthplace coordinates'),
+  );
+  assert.ok(
+    enDisclaimerText.includes('not independently certified against swiss ephemeris'),
+    'Disclaimer must not falsely claim Swiss Ephemeris verification',
+  );
+
+  // Pure Assamese orthography check: zero Bengali ra (U+09B0 'র') in Assamese translations
+  const asSerialized = JSON.stringify(TRANSLATIONS.as);
+  assert.equal(
+    asSerialized.includes('\u09B0'),
+    false,
+    'Assamese dictionary must use Assamese ৰ (U+09F0), never Bengali র (U+09B0)',
+  );
+});
+
+

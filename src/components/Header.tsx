@@ -57,10 +57,7 @@ export function Header() {
           onClick={() => setMobileOpen(false)}
           className="flex items-center gap-2.5 shrink-0 whitespace-nowrap group"
         >
-          <JyotishLogoMark
-            size={34}
-            className="transition-transform duration-300 group-hover:rotate-12 shrink-0"
-          />
+          <JyotishLogoMark size={34} className="shrink-0" />
           <span className="font-display text-lg sm:text-xl font-semibold tracking-wide text-[#F8F0E3] whitespace-nowrap">
             {t.brand.name}
           </span>
