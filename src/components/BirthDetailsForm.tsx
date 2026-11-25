@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import { MapPin, Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { CALC_UI } from '../i18n/vedicLabels';
-import { PANCHANG_CITIES, getPanchangCityById, type PanchangCityId } from '../utils/panchang';
+import {
+  PANCHANG_CITIES,
+  getCityUtcOffsetMinutesForDate,
+  getPanchangCityById,
+  type PanchangCityId,
+} from '../utils/panchang';
 import type { BirthInput } from '../utils/vedicAstrology';
 
 export interface BirthFormState {
@@ -32,18 +37,28 @@ export function createDefaultBirthFormState(
   };
 }
 
+function parseFiniteNumber(raw: string, fallback: number): number {
+  const trimmed = raw.trim();
+  if (trimmed === '') return fallback;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export function formStateToBirthInput(state: BirthFormState): BirthInput {
   const city = getPanchangCityById(state.cityId);
-  const lat = state.useCustomCoords ? Number(state.customLat) || city.lat : city.lat;
-  const lon = state.useCustomCoords ? Number(state.customLon) || city.lon : city.lon;
+  const dateStr = state.dateStr || '1996-05-15';
+  const timeStr = state.timeStr || '08:30';
+  const lat = state.useCustomCoords ? parseFiniteNumber(state.customLat, city.lat) : city.lat;
+  const lon = state.useCustomCoords ? parseFiniteNumber(state.customLon, city.lon) : city.lon;
+  const resolvedCityOffset = getCityUtcOffsetMinutesForDate(city, dateStr, timeStr);
   const utcOffsetMinutes = state.useCustomCoords
-    ? Math.round((Number(state.customUtcHours) || 5.5) * 60)
-    : city.utcOffsetMinutes;
+    ? Math.round(parseFiniteNumber(state.customUtcHours, resolvedCityOffset / 60) * 60)
+    : resolvedCityOffset;
 
   return {
     name: state.name.trim(),
-    dateStr: state.dateStr || '1996-05-15',
-    timeStr: state.timeStr || '08:30',
+    dateStr,
+    timeStr,
     lat: Math.max(-66, Math.min(66, lat)),
     lon: Math.max(-180, Math.min(180, lon)),
     utcOffsetMinutes,
@@ -126,7 +141,7 @@ export function BirthDetailsForm({
             id={`${idPrefix}-date`}
             type="date"
             required
-            min="1900-01-01"
+            min="1800-01-01"
             max="2099-12-31"
             value={value.dateStr}
             onChange={(e) => onChange({ ...value, dateStr: e.target.value })}

@@ -31,6 +31,8 @@ export interface PanchangCity {
   lon: number;
   /** Standard UTC offset in minutes (e.g., +330 for IST UTC+05:30). */
   utcOffsetMinutes: number;
+  /** IANA timezone identifier for historical/DST offset resolution. */
+  ianaTimeZone: string;
 }
 
 export const PANCHANG_CITY_STORAGE_KEY = 'jyotishsetu_panchang_city';
@@ -46,6 +48,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 25.3176,
     lon: 82.9739,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'guwahati',
@@ -56,6 +59,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 26.1445,
     lon: 91.7362,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'dibrugarh',
@@ -66,6 +70,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 27.4728,
     lon: 94.912,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'jorhat',
@@ -76,6 +81,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 26.7575,
     lon: 94.2031,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'silchar',
@@ -86,6 +92,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 24.8333,
     lon: 92.7789,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'new-delhi',
@@ -96,6 +103,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 28.6139,
     lon: 77.209,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'mumbai',
@@ -106,6 +114,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 19.076,
     lon: 72.8777,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'kolkata',
@@ -116,6 +125,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 22.5726,
     lon: 88.3639,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'ujjain',
@@ -126,6 +136,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 23.1765,
     lon: 75.7885,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'bengaluru',
@@ -136,6 +147,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 12.9716,
     lon: 77.5946,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'chennai',
@@ -146,6 +158,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 13.0827,
     lon: 80.2707,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'jaipur',
@@ -156,6 +169,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 26.9124,
     lon: 75.7873,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'ahmedabad',
@@ -166,6 +180,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 23.0225,
     lon: 72.5714,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'hyderabad',
@@ -176,6 +191,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 17.385,
     lon: 78.4867,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'pune',
@@ -186,6 +202,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 18.5204,
     lon: 73.8567,
     utcOffsetMinutes: 330,
+    ianaTimeZone: 'Asia/Kolkata',
   },
   {
     id: 'kathmandu',
@@ -196,26 +213,29 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
     lat: 27.7172,
     lon: 85.324,
     utcOffsetMinutes: 345,
+    ianaTimeZone: 'Asia/Kathmandu',
   },
   {
     id: 'london',
     names: { en: 'London', hi: 'लंदन', as: 'লণ্ডন' },
     regions: { en: 'United Kingdom', hi: 'यूनाइटेड किंगडम', as: 'যুক্তৰাজ্য' },
     coordinates: '51.51° N, 0.13° W',
-    timezone: 'GMT (UTC+00:00)',
+    timezone: 'GMT/BST (UK)',
     lat: 51.5074,
     lon: -0.1278,
     utcOffsetMinutes: 0,
+    ianaTimeZone: 'Europe/London',
   },
   {
     id: 'new-york',
     names: { en: 'New York', hi: 'न्यूयॉर्क', as: 'নিউ ইয়ৰ্ক' },
     regions: { en: 'United States', hi: 'संयुक्त राज्य', as: 'আমেৰিকা যুক্তৰাষ্ট্ৰ' },
     coordinates: '40.71° N, 74.01° W',
-    timezone: 'EST (UTC-05:00)',
+    timezone: 'EST/EDT (US East)',
     lat: 40.7128,
     lon: -74.006,
     utcOffsetMinutes: -300,
+    ianaTimeZone: 'America/New_York',
   },
 ] as const;
 
@@ -225,6 +245,66 @@ export function isValidPanchangCityId(value: string | null | undefined): value i
 
 export function getPanchangCityById(id: string | null | undefined): PanchangCity {
   return PANCHANG_CITIES.find((city) => city.id === id) ?? PANCHANG_CITIES[0];
+}
+
+/**
+ * Resolves the accurate UTC offset in minutes for a preset city on a specific local date & time,
+ * accounting for Daylight Saving Time (e.g., UK BST, US EDT), India War Time (1942-1945),
+ * and pre-1906 Local Mean Time (LMT) for Indian cities before IST adoption.
+ */
+export function getCityUtcOffsetMinutesForDate(
+  city: PanchangCity,
+  dateStr: string,
+  timeStr: string = '12:00',
+): number {
+  const [yStr, mStr, dStr] = (dateStr || '2000-01-01').split('-');
+  const [hhStr, mmStr] = (timeStr || '12:00').split(':');
+  const year = Number(yStr);
+  const month = Number(mStr);
+  const day = Number(dStr);
+  const hour = Number(hhStr) || 0;
+  const minute = Number(mmStr) || 0;
+
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return city.utcOffsetMinutes;
+  }
+
+  // Prior to 1 Jan 1906, India did not use unified IST; regional cities kept Local Mean Time (lon * 4 min)
+  if (city.ianaTimeZone === 'Asia/Kolkata' && year < 1906) {
+    return Math.round(city.lon * 4);
+  }
+
+  try {
+    const approxUtc = new Date(0);
+    approxUtc.setUTCFullYear(year, month - 1, day);
+    approxUtc.setUTCHours(hour, minute, 0, 0);
+
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: city.ianaTimeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    });
+
+    const toZonedUtcMs = (dt: Date): number => {
+      const parts = Object.fromEntries(fmt.formatToParts(dt).map((p) => [p.type, p.value]));
+      const zoned = new Date(0);
+      zoned.setUTCFullYear(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+      zoned.setUTCHours(Number(parts.hour), Number(parts.minute), Number(parts.second), 0);
+      return zoned.getTime();
+    };
+
+    const offset1 = Math.round((toZonedUtcMs(approxUtc) - approxUtc.getTime()) / 60_000);
+    const refinedUtc = new Date(approxUtc.getTime() - offset1 * 60_000);
+    const offset2 = Math.round((toZonedUtcMs(refinedUtc) - refinedUtc.getTime()) / 60_000);
+    return Number.isFinite(offset2) ? offset2 : city.utcOffsetMinutes;
+  } catch {
+    return city.utcOffsetMinutes;
+  }
 }
 
 export function loadSavedPanchangCity(storage?: StorageLike | null): PanchangCityId {
@@ -385,10 +465,15 @@ export function formatLocalTime(
   return `${periodAs} ${timeNum}`;
 }
 
-export function formatShortDate(utcDate: Date, lang: Language): string {
-  const day = localizeDigits(utcDate.getUTCDate(), lang);
-  const month = MONTHS[lang][utcDate.getUTCMonth()];
-  const year = localizeDigits(utcDate.getUTCFullYear(), lang);
+export function formatShortDate(
+  utcDate: Date,
+  lang: Language,
+  utcOffsetMinutes: number = 0,
+): string {
+  const shifted = new Date(utcDate.getTime() + utcOffsetMinutes * 60_000);
+  const day = localizeDigits(shifted.getUTCDate(), lang);
+  const month = MONTHS[lang][shifted.getUTCMonth()];
+  const year = localizeDigits(shifted.getUTCFullYear(), lang);
   return `${day} ${month} ${year}`;
 }
 

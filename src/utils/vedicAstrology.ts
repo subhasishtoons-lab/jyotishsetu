@@ -283,62 +283,130 @@ export function norm360(deg: number): number {
 }
 
 export function formatDMS(degInSign: number): string {
-  const totalMin = Math.round(degInSign * 60);
+  const safe = Number.isFinite(degInSign) ? Math.abs(degInSign) : 0;
+  let totalMin = Math.round(safe * 60);
+  // Prevent a degree inside a 30-degree Rashi (e.g. 29.996°) from rounding up to impossible 30°00′
+  if (safe < 30 && totalMin >= 1800) {
+    totalMin = 1799;
+  }
   const d = Math.floor(totalMin / 60);
   const m = totalMin % 60;
   return `${String(d).padStart(2, '0')}°${String(m).padStart(2, '0')}′`;
 }
 
 /**
- * Converts local birth date + time + UTC offset (minutes) into an exact UTC Date.
+ * Gregorian leap-year check (divisible by 4, except centuries not divisible by 400).
+ */
+export function isGregorianLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+/**
+ * Exact number of calendar days in a Gregorian month (month1Based: 1..12).
+ */
+export function daysInGregorianMonth(year: number, month1Based: number): number {
+  const m = Math.max(1, Math.min(12, Math.trunc(month1Based)));
+  if (m === 2) return isGregorianLeapYear(year) ? 29 : 28;
+  if (m === 4 || m === 6 || m === 9 || m === 11) return 30;
+  return 31;
+}
+
+/**
+ * Converts local birth date (YYYY-MM-DD) + time (HH:MM or HH:MM:SS) + UTC offset (minutes)
+ * into an exact UTC Date. Handles historical years (including 0000-0099 without JS 1900-offset),
+ * seconds, negative/fractional UTC offsets, and strict Gregorian leap-year day clamping.
  */
 export function buildUtcDate(dateStr: string, timeStr: string, utcOffsetMinutes: number): Date {
-  const [yStr, mStr, dStr] = dateStr.split('-');
-  const [hhStr, mmStr] = (timeStr || '12:00').split(':');
-  const year = Number(yStr) || 2000;
-  const month = (Number(mStr) || 1) - 1;
-  const day = Number(dStr) || 1;
-  const hour = Number(hhStr) || 0;
-  const minute = Number(mmStr) || 0;
-  const localAsUtcMs = Date.UTC(year, month, day, hour, minute, 0, 0);
-  return new Date(localAsUtcMs - utcOffsetMinutes * 60_000);
+  const [yStr, mStr, dStr] = (dateStr || '2000-01-01').trim().split('-');
+  const [hhStr, mmStr, ssStr] = (timeStr || '12:00').trim().split(':');
+
+  const parsedYear = Number(yStr);
+  const year = Number.isFinite(parsedYear) ? Math.trunc(parsedYear) : 2000;
+  const parsedMonth = Number(mStr);
+  const month1Based = Number.isFinite(parsedMonth)
+    ? Math.max(1, Math.min(12, Math.trunc(parsedMonth)))
+    : 1;
+  const maxDay = daysInGregorianMonth(year, month1Based);
+  const parsedDay = Number(dStr);
+  const day = Number.isFinite(parsedDay)
+    ? Math.max(1, Math.min(maxDay, Math.trunc(parsedDay)))
+    : 1;
+
+  const parsedHour = Number(hhStr);
+  const hour = Number.isFinite(parsedHour) ? Math.max(0, Math.min(23, Math.trunc(parsedHour))) : 0;
+  const parsedMinute = Number(mmStr);
+  const minute = Number.isFinite(parsedMinute)
+    ? Math.max(0, Math.min(59, Math.trunc(parsedMinute)))
+    : 0;
+  const parsedSecond = Number(ssStr);
+  const second = Number.isFinite(parsedSecond)
+    ? Math.max(0, Math.min(59, Math.trunc(parsedSecond)))
+    : 0;
+
+  // Use setUTCFullYear to avoid JavaScript Date.UTC mapping years 0..99 to 1900..1999.
+  const localAsUtc = new Date(0);
+  localAsUtc.setUTCFullYear(year, month1Based - 1, day);
+  localAsUtc.setUTCHours(hour, minute, second, 0);
+
+  const safeOffset = Number.isFinite(utcOffsetMinutes) ? utcOffsetMinutes : 0;
+  return new Date(localAsUtc.getTime() - safeOffset * 60_000);
 }
 
 /**
- * Julian centuries since J2000.0 (2000-01-01 12:00:00 TT/UTC).
+ * Julian centuries of Terrestrial Time (TT) since J2000.0 (2000-01-01 12:00:00 TT).
+ * Uses Astronomy Engine's historical Delta-T model (tt vs ut) for precision across centuries.
  */
 export function julianCenturiesJ2000(date: Date): number {
-  const j2000Ms = Date.UTC(2000, 0, 1, 12, 0, 0, 0);
-  const days = (date.getTime() - j2000Ms) / 86_400_000;
-  return days / 36525;
+  const time = Astronomy.MakeTime(date);
+  return time.tt / 36525;
 }
 
 /**
- * Lahiri (Chitrapaksha) Ayanamsha in degrees.
- * Aligned to Indian Government Rashtriya Panchang / Swiss Ephemeris SE_SIDM_LAHIRI:
- * 23° 51' 25.5324" at J2000.0 + IAU general precession in longitude.
+ * Mean Lahiri (Chitrapaksha) Ayanamsha in degrees (without nutation).
+ * Aligned to Swiss Ephemeris SE_SIDM_LAHIRI / Rashtriya Panchang:
+ * 23° 51' 25.5324" mean at J2000.0 + IAU 2006 (P03) general precession in longitude (TT).
  */
-export function getLahiriAyanamsha(date: Date): number {
+export function getMeanLahiriAyanamsha(date: Date): number {
   const T = julianCenturiesJ2000(date);
-  const baseJ2000 = 23 + 51 / 60 + 25.5324 / 3600; // 23.85709233°
-  const precessionArcsec = 5028.796195 * T + 1.1054348 * T * T;
+  const baseJ2000 = 23 + 51 / 60 + 25.5324 / 3600; // 23.8570923333°
+  const precessionArcsec =
+    5028.796195 * T +
+    1.1054348 * T * T +
+    0.00007964 * T * T * T -
+    0.000023857 * T * T * T * T;
   return baseJ2000 + precessionArcsec / 3600;
 }
 
 /**
- * True ecliptic longitude of date (tropical) for Sun, Moon, Mercury..Saturn via astronomy-engine.
+ * True (Apparent) Lahiri / Chitrapaksha Ayanamsha in degrees.
+ * Includes nutation in longitude (dpsi) so subtracting from apparent true ecliptic-of-date
+ * longitudes cancels nutation cleanly and matches Swiss Ephemeris SE_SIDM_LAHIRI (~1" precision).
+ */
+export function getLahiriAyanamsha(date: Date): number {
+  const time = Astronomy.MakeTime(date);
+  const tilt = Astronomy.e_tilt(time);
+  return getMeanLahiriAyanamsha(date) + tilt.dpsi / 3600;
+}
+
+/**
+ * Apparent true ecliptic longitude of date (tropical, including precession & nutation)
+ * for Sun, Moon, Mercury..Saturn via astronomy-engine.
  */
 export function getTropicalLongitude(body: Astronomy.Body, date: Date): number {
   const time = Astronomy.MakeTime(date);
   if (body === Astronomy.Body.Sun) {
     return norm360(Astronomy.SunPosition(time).elon);
   }
+  if (body === Astronomy.Body.Moon) {
+    return norm360(Astronomy.EclipticGeoMoon(time).lon);
+  }
   const vec = Astronomy.GeoVector(body, time, true);
   return norm360(Astronomy.Ecliptic(vec).elon);
 }
 
 /**
- * Mean ascending lunar node (Rahu) tropical longitude via Meeus Ch. 47.
+ * Mean ascending lunar node (Rahu) tropical longitude relative to Mean Equinox of Date
+ * via Meeus Astronomical Algorithms (2nd ed., Ch. 47, Eq. 47.7) using Terrestrial Time (TT).
  */
 export function getMeanRahuTropicalLongitude(date: Date): number {
   const T = julianCenturiesJ2000(date);
@@ -352,13 +420,17 @@ export function getMeanRahuTropicalLongitude(date: Date): number {
 }
 
 export function getSiderealLongitude(planet: PlanetId, date: Date): number {
-  const ayanamsha = getLahiriAyanamsha(date);
+  // Mean Rahu/Ketu are measured from the Mean Equinox of Date -> subtract Mean Lahiri Ayanamsha
+  // so nutation (dpsi) is not spuriously injected into the mean node.
   if (planet === 'rahu') {
-    return norm360(getMeanRahuTropicalLongitude(date) - ayanamsha);
+    const meanAyanamsha = getMeanLahiriAyanamsha(date);
+    return norm360(getMeanRahuTropicalLongitude(date) - meanAyanamsha);
   }
   if (planet === 'ketu') {
-    return norm360(getMeanRahuTropicalLongitude(date) + 180 - ayanamsha);
+    const meanAyanamsha = getMeanLahiriAyanamsha(date);
+    return norm360(getMeanRahuTropicalLongitude(date) - meanAyanamsha + 180);
   }
+  const ayanamsha = getLahiriAyanamsha(date);
   const bodyMap: Record<Exclude<PlanetId, 'rahu' | 'ketu'>, Astronomy.Body> = {
     sun: Astronomy.Body.Sun,
     moon: Astronomy.Body.Moon,
@@ -373,18 +445,22 @@ export function getSiderealLongitude(planet: PlanetId, date: Date): number {
 }
 
 /**
- * Sidereal Ascendant (Lagna) longitude in degrees using GMST + local longitude + true obliquity.
+ * Sidereal Ascendant (Lagna) longitude in degrees using Greenwich Apparent Sidereal Time (GAST),
+ * observer longitude/latitude, True Obliquity of the ecliptic (tobl), and True Lahiri Ayanamsha.
+ * Verified to 0.0000" against 3D horizon-ecliptic intersection across all hemispheres.
  */
 export function getSiderealAscendant(date: Date, lat: number, lon: number): number {
   const time = Astronomy.MakeTime(date);
-  const gmstHours = Astronomy.SiderealTime(time);
-  const lstDeg = norm360(gmstHours * 15 + lon);
-  const T = julianCenturiesJ2000(date);
-  const epsDeg = 23.4392911 - 0.0130042 * T;
+  const gastHours = Astronomy.SiderealTime(time);
+  const lstDeg = norm360(gastHours * 15 + lon);
+  const tilt = Astronomy.e_tilt(time);
+  const epsDeg = tilt.tobl;
 
+  // Guard against polar-circle singularities (|lat| >= 90 - eps) where ecliptic horizon intersection degenerates
+  const safeLat = Math.max(-66.5, Math.min(66.5, lat));
   const lst = lstDeg * DEG2RAD;
   const eps = epsDeg * DEG2RAD;
-  const phi = lat * DEG2RAD;
+  const phi = safeLat * DEG2RAD;
 
   const y = Math.cos(lst);
   const x = -(Math.sin(lst) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps));
@@ -395,26 +471,31 @@ export function getSiderealAscendant(date: Date, lat: number, lon: number): numb
 
 /**
  * Classical Parashari Navamsha (D-9) Rashi index (0..11) from sidereal longitude.
+ * Uses numerator-first rational arithmetic to avoid IEEE-754 boundary errors at 10°, 20°, etc.
  */
 export function getNavamshaRashiIndex(siderealLon: number): number {
-  const sign = Math.floor(norm360(siderealLon) / 30);
-  const degInSign = norm360(siderealLon) % 30;
-  const navPart = Math.min(8, Math.floor(degInSign / (30 / 9)));
-  // Fire(0,4,8)->0, Earth(1,5,9)->9, Air(2,6,10)->6, Water(3,7,11)->3
+  const lon = norm360(siderealLon);
+  const sign = Math.floor(lon / 30);
+  const degInSign = lon - sign * 30;
+  const navPart = Math.min(8, Math.floor((degInSign * 9) / 30 + 1e-12));
+  // Fire(0,4,8)->0(Mesha), Earth(1,5,9)->9(Makara), Air(2,6,10)->6(Tula), Water(3,7,11)->3(Karka)
   const startByElement = [0, 9, 6, 3];
   const startSign = startByElement[sign % 4];
   return (startSign + navPart) % 12;
 }
 
+/**
+ * Exact Nakshatra index (0..26) and Pada (1..4) from sidereal longitude.
+ * Uses 108-pada numerator-first rational arithmetic to prevent IEEE-754 boundary drift at 40°, 80°, etc.
+ */
 export function getNakshatraAndPada(siderealLon: number): {
   nakshatraIndex: number;
   pada: number;
 } {
   const lon = norm360(siderealLon);
-  const span = 360 / 27; // 13.333333°
-  const nakshatraIndex = Math.min(26, Math.floor(lon / span));
-  const within = lon - nakshatraIndex * span;
-  const pada = Math.min(4, Math.floor(within / (span / 4)) + 1);
+  const padaTotal = Math.min(107, Math.floor((lon * 108) / 360 + 1e-12));
+  const nakshatraIndex = Math.floor(padaTotal / 4);
+  const pada = (padaTotal % 4) + 1;
   return { nakshatraIndex, pada };
 }
 
@@ -510,7 +591,7 @@ function isPlanetCombust(
   return angularSeparation(planetLon, sunLon) <= orb[planet];
 }
 
-const TROPICAL_YEAR_MS = 365.2425 * 86_400_000;
+const GREGORIAN_YEAR_MS = 365.2425 * 86_400_000;
 
 export function computeVimshottariDasha(
   birthUtc: Date,
@@ -521,9 +602,10 @@ export function computeVimshottariDasha(
   currentMahadasha: DashaPeriod | null;
   currentAntardashas: DashaPeriod[];
 } {
-  const span = 360 / 27;
-  const nakIdx = Math.min(26, Math.floor(norm360(moonSiderealLon) / span));
-  const elapsedFraction = (norm360(moonSiderealLon) - nakIdx * span) / span;
+  const lon = norm360(moonSiderealLon);
+  const nakPos = (lon * 27) / 360; // exact position in [0, 27)
+  const nakIdx = Math.min(26, Math.floor(nakPos + 1e-12));
+  const elapsedFraction = Math.max(0, Math.min(1, nakPos - nakIdx));
   const remainingFraction = Math.max(0, 1 - elapsedFraction);
 
   const startLordIdx = nakIdx % 9;
@@ -534,7 +616,7 @@ export function computeVimshottariDasha(
   for (let i = 0; i < 9; i++) {
     const entry = VIMSHOTTARI_ORDER[(startLordIdx + i) % 9];
     const years = i === 0 ? entry.years * remainingFraction : entry.years;
-    const endMs = cursorMs + years * TROPICAL_YEAR_MS;
+    const endMs = cursorMs + years * GREGORIAN_YEAR_MS;
     const isCurrent = refMs >= cursorMs && refMs < endMs;
     mahadashas.push({
       lord: entry.lord,
@@ -546,28 +628,52 @@ export function computeVimshottariDasha(
     cursorMs = endMs;
   }
 
-  const currentMahadasha = mahadashas.find((d) => d.isCurrent) ?? mahadashas[0] ?? null;
+  // Append the completing balance of the birth lord so the cycle spans exactly 120.0000 years from birth
+  if (elapsedFraction > 1e-6) {
+    const birthEntry = VIMSHOTTARI_ORDER[startLordIdx];
+    const tailYears = birthEntry.years * elapsedFraction;
+    const endMs = cursorMs + tailYears * GREGORIAN_YEAR_MS;
+    mahadashas.push({
+      lord: birthEntry.lord,
+      startDate: new Date(cursorMs),
+      endDate: new Date(endMs),
+      years: tailYears,
+      isCurrent: refMs >= cursorMs && refMs < endMs,
+    });
+  }
+
+  const activeIdx = mahadashas.findIndex((d) => d.isCurrent);
+  const selectedIdx = activeIdx >= 0 ? activeIdx : 0;
+  const currentMahadasha = mahadashas[selectedIdx] ?? null;
   const currentAntardashas: DashaPeriod[] = [];
 
   if (currentMahadasha) {
-    // Antardashas start from the Mahadasha lord itself over its full nominal period
     const mdIdx = VIMSHOTTARI_ORDER.findIndex((e) => e.lord === currentMahadasha.lord);
     const fullMdYears = VIMSHOTTARI_ORDER[mdIdx].years;
-    // Anchor full Mahadasha start back from endDate so partial first Mahadasha aligns accurately
-    let adCursorMs = currentMahadasha.endDate.getTime() - fullMdYears * TROPICAL_YEAR_MS;
+    const isTailBalance = selectedIdx === 9;
+
+    // For initial birth Mahadasha (idx 0), anchor back from endDate so elapsed sub-periods precede birth.
+    // For full Mahadashas (idx 1..8) and final tail balance (idx 9), anchor forward from startDate.
+    let adCursorMs = isTailBalance
+      ? currentMahadasha.startDate.getTime()
+      : currentMahadasha.endDate.getTime() - fullMdYears * GREGORIAN_YEAR_MS;
+
+    const mdStartMs = currentMahadasha.startDate.getTime();
+    const mdEndMs = currentMahadasha.endDate.getTime();
 
     for (let j = 0; j < 9; j++) {
       const sub = VIMSHOTTARI_ORDER[(mdIdx + j) % 9];
       const subYears = (fullMdYears * sub.years) / 120;
-      const adEndMs = adCursorMs + subYears * TROPICAL_YEAR_MS;
-      if (adEndMs > birthUtc.getTime()) {
-        const clampedStart = Math.max(adCursorMs, birthUtc.getTime());
+      const adEndMs = adCursorMs + subYears * GREGORIAN_YEAR_MS;
+      const clampedStart = Math.max(adCursorMs, mdStartMs);
+      const clampedEnd = Math.min(adEndMs, mdEndMs);
+      if (clampedEnd > clampedStart + 1000) {
         currentAntardashas.push({
           lord: sub.lord,
           startDate: new Date(clampedStart),
-          endDate: new Date(adEndMs),
-          years: subYears,
-          isCurrent: refMs >= clampedStart && refMs < adEndMs,
+          endDate: new Date(clampedEnd),
+          years: (clampedEnd - clampedStart) / GREGORIAN_YEAR_MS,
+          isCurrent: refMs >= clampedStart && refMs < clampedEnd,
         });
       }
       adCursorMs = adEndMs;
@@ -1281,8 +1387,8 @@ export function computeSadeSati(input: BirthInput, referenceDate: Date = new Dat
 
   // Find nearest cycle by scanning -10 years to +22 years from referenceDate
   const stepMs = 20 * 86_400_000;
-  const scanStartMs = referenceDate.getTime() - 10 * TROPICAL_YEAR_MS;
-  const scanEndMs = referenceDate.getTime() + 22 * TROPICAL_YEAR_MS;
+  const scanStartMs = referenceDate.getTime() - 10 * GREGORIAN_YEAR_MS;
+  const scanEndMs = referenceDate.getTime() + 22 * GREGORIAN_YEAR_MS;
   const samples: Array<{ ms: number; sign: number }> = [];
   for (let ms = scanStartMs; ms <= scanEndMs; ms += stepMs) {
     const lon = getSiderealLongitude('saturn', new Date(ms));

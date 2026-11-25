@@ -72,7 +72,9 @@ export function KundliChartSvg({
   const planetsByRashi: Record<number, string[]> = {};
   for (let i = 0; i < 12; i++) planetsByRashi[i] = [];
 
-  planetsByRashi[lagnaRashiIndex].push(shortMap.lagna);
+  if (chartType !== 'chandra') {
+    planetsByRashi[lagnaRashiIndex].push(shortMap.lagna);
+  }
   for (const p of planets) {
     const rIdx = getPlanetSignForChart(p, chartType);
     const label = p.retrograde && p.id !== 'rahu' && p.id !== 'ketu'

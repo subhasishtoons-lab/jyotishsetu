@@ -30,10 +30,8 @@ export function KundliPage() {
   const [chartStyle, setChartStyle] = useState<ChartStyle>('north');
   const [chartType, setChartType] = useState<ChartType>('lagna');
 
-  const kundli = useMemo(
-    () => computeKundli(formStateToBirthInput(submittedState)),
-    [submittedState],
-  );
+  const birthInput = useMemo(() => formStateToBirthInput(submittedState), [submittedState]);
+  const kundli = useMemo(() => computeKundli(birthInput), [birthInput]);
 
   const activeLagnaIdx =
     chartType === 'navamsha'
@@ -301,7 +299,8 @@ export function KundliPage() {
                     )}
                   </div>
                   <span className="font-mono tabular-nums text-xs text-[#542D24]">
-                    {formatShortDate(d.startDate, language)} – {formatShortDate(d.endDate, language)}
+                    {formatShortDate(d.startDate, language, birthInput.utcOffsetMinutes)} –{' '}
+                    {formatShortDate(d.endDate, language, birthInput.utcOffsetMinutes)}
                   </span>
                 </div>
               ))}
@@ -330,7 +329,8 @@ export function KundliPage() {
                     {ad.isCurrent ? ` · ${ui.currentTag}` : ''}
                   </span>
                   <span className="font-mono tabular-nums text-xs text-[#542D24]">
-                    {formatShortDate(ad.startDate, language)} – {formatShortDate(ad.endDate, language)}
+                    {formatShortDate(ad.startDate, language, birthInput.utcOffsetMinutes)} –{' '}
+                    {formatShortDate(ad.endDate, language, birthInput.utcOffsetMinutes)}
                   </span>
                 </div>
               ))}
