@@ -125,7 +125,16 @@ test('all three languages exist with complete zodiac, 9 live tools, blog, and pa
     assert.equal(dict.premium.features.length, 4, `${code}: premium features`);
     assert.ok(dict.horoscope.solarDateNote.length > 0, `${code}: solarDateNote`);
     assert.ok(dict.panchang.citySelectorLabel.length > 0, `${code}: panchang citySelectorLabel`);
+    assert.ok(dict.toolsPage.shaniDhaiyaCard.title.length > 0, `${code}: shaniDhaiyaCard title`);
+    assert.ok(dict.toolsPage.shaniDhaiyaCard.subtitle.length > 0, `${code}: shaniDhaiyaCard subtitle`);
+    assert.ok(dict.toolsPage.shaniDhaiyaCard.openButton.length > 0, `${code}: shaniDhaiyaCard openButton`);
   }
+  assert.equal(TRANSLATIONS.en.toolsPage.shaniDhaiyaCard.title, 'Shani Dhaiya Calculator');
+  assert.equal(
+    TRANSLATIONS.en.toolsPage.shaniDhaiyaCard.subtitle,
+    'Check 4th-house Kantaka Shani and 8th-house Ashtama Shani periods',
+  );
+  assert.equal(TRANSLATIONS.en.toolsPage.shaniDhaiyaCard.openButton, 'Open Calculator');
 });
 
 test('language preference saves and loads from storage with safe fallback', () => {

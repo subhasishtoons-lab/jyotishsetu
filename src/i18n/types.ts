@@ -246,6 +246,13 @@ export interface TranslationDictionary {
     filterAll: string;
     filterCore: string;
     filterDosha: string;
+    shaniDhaiyaCard: {
+      kicker: string;
+      title: string;
+      subtitle: string;
+      description: string;
+      openButton: string;
+    };
   };
   comingSoonCommon: {
     phaseLabel: string;

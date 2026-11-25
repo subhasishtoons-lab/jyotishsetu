@@ -670,10 +670,18 @@ export const en: TranslationDictionary = {
     kicker: 'Complete Jyotish Suite',
     title: 'Vedic Astrology Tools',
     subtitle:
-      'Explore all nine interactive Vedic instruments of JyotishSetu—powered directly in your browser by VSOP87/ELP sidereal ephemeris and Lahiri (Chitrapaksha) Ayanamsha.',
+      'Explore all ten interactive Vedic instruments of JyotishSetu—powered directly in your browser by VSOP87/ELP sidereal ephemeris and Lahiri (Chitrapaksha) Ayanamsha.',
     filterAll: 'All Tools',
     filterCore: 'Core Vedic Charts',
     filterDosha: 'Dosha & Lunar Analysis',
+    shaniDhaiyaCard: {
+      kicker: 'Shani Gochara · 4th & 8th House',
+      title: 'Shani Dhaiya Calculator',
+      subtitle: 'Check 4th-house Kantaka Shani and 8th-house Ashtama Shani periods',
+      description:
+        'View exact Lahiri sidereal Saturn transit intervals for 4th-house Kantaka (Ardha-Ashtama) and 8th-house Ashtama Shani, including retrograde sign returns in your birthplace timezone.',
+      openButton: 'Open Calculator',
+    },
   },
   comingSoonCommon: {
     phaseLabel: 'Coming Soon · Phase 2 Release',
