@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowRight, Info, Clock } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { localizeDigits } from '../utils/panchang';
 import type { ComingSoonFeatureSpec } from '../i18n/types';
 import { Link } from '../components/Link';
 import { NavagrahaDiagram } from '../components/artwork/NavagrahaDiagram';
@@ -10,7 +11,7 @@ interface ComingSoonPageProps {
 }
 
 export function ComingSoonPage({ spec }: ComingSoonPageProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -65,7 +66,9 @@ export function ComingSoonPage({ spec }: ComingSoonPageProps) {
                   className="p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35"
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-mono tabular-nums text-[#B08532]">0{idx + 1}</span>
+                    <span className="font-mono tabular-nums text-[#B08532]">
+                      {localizeDigits(`0${idx + 1}`, language)}
+                    </span>
                     <span className="text-[11px] font-medium text-[#542D24]/75">
                       {t.quickTools.statusComingSoon}
                     </span>

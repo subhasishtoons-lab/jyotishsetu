@@ -150,14 +150,14 @@ export function Footer() {
               <p className="text-xs font-medium tracking-wider text-[#D8AD59] mb-2.5">
                 {t.footer.connectHeading}
               </p>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-[#F8F0E3]/80 max-w-[220px]">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-[#F8F0E3]/80 max-w-[260px]">
                 {socialItems.map((social) => (
                   <a
                     key={social.name}
                     href={social.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-[#EBD08D] transition-colors"
+                    className="hover:text-[#EBD08D] transition-colors whitespace-nowrap"
                   >
                     {social.name}
                   </a>
@@ -167,9 +167,9 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#F8F0E3]/65">
-          <p>{t.footer.copyright}</p>
-          <p>{t.footer.phaseNotice}</p>
+        <div className="pt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#F8F0E3]/70 leading-relaxed">
+          <p className="shrink-0">{t.footer.copyright}</p>
+          <p className="sm:text-right">{t.footer.phaseNotice}</p>
         </div>
       </div>
     </footer>

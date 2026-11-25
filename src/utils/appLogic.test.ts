@@ -230,8 +230,8 @@ test('Panchang date formatter produces Tuesday, 24 November 2026 across all thre
   assert.equal(hiDate.weekdayVedic, 'मंगलवार');
 
   const asDate = formatPanchangDate(nov24, 'as');
-  assert.equal(asDate.formattedDate, 'মঙ্গলবাৰ, ২৪ নৱেম্বৰ ২০২৬');
-  assert.equal(asDate.weekdayVedic, 'মঙ্গলবাৰ');
+  assert.equal(asDate.formattedDate, 'মঙলবাৰ, ২৪ নৱেম্বৰ ২০২৬');
+  assert.equal(asDate.weekdayVedic, 'মঙলবাৰ');
 });
 
 test('Panchang city selector saves, loads, and falls back safely with full localization', () => {
@@ -257,4 +257,57 @@ test('Panchang city selector saves, loads, and falls back safely with full local
     assert.ok(city.coordinates.includes('°'));
   }
 });
+
+test('Assamese translation maintains pure Assamese orthography, consistent Vedic terms, and clean editorial copy', () => {
+  const asCorpus = JSON.stringify(TRANSLATIONS.as);
+  const cityCorpus = JSON.stringify(
+    PANCHANG_CITIES.map((c) => ({ name: c.names.as, region: c.regions.as })),
+  );
+  const fullAssamese = `${asCorpus} ${cityCorpus}`;
+
+  // Must not contain Bengali ra (U+09B0); Assamese uses U+09F0 (ৰ).
+  assert.equal(fullAssamese.includes('\u09B0'), false, 'Found stray Bengali ra (U+09B0)');
+
+  // Must not contain unnatural/incorrect phrases or orthography defects.
+  for (const forbidden of [
+    'পৰিকল্পনা চাওক',
+    'চাৰে সাতি',
+    'গোছৰ',
+    'ডেক্স',
+    'পশ্চিমবঙ্গ',
+    'পঞ্চাঙ্গ',
+    'মঙ্গল',
+    ' ও ',
+    ' AM',
+    ' PM',
+  ]) {
+    assert.equal(
+      fullAssamese.includes(forbidden),
+      false,
+      `Forbidden or inconsistent Assamese phrase still present: ${forbidden}`,
+    );
+  }
+
+  // Must consistently include core Vedic astrology terminology and polished UI labels.
+  for (const required of [
+    'তিথি',
+    'নক্ষত্ৰ',
+    'যোগ',
+    'কৰণ',
+    'ৰাহু কাল',
+    'লাহিড়ী অয়নাংশ',
+    'বিংশোত্তৰী দশা',
+    'সাঢ়েসাতী',
+    'বিৱৰণ চাওক',
+    'অস্বীকাৰ পত্ৰ',
+  ]) {
+    assert.ok(fullAssamese.includes(required), `Missing required Assamese term: ${required}`);
+  }
+
+  // Footer text must be complete and non-empty.
+  assert.equal(TRANSLATIONS.as.quickTools.openComingSoon, 'বিৱৰণ চাওক');
+  assert.ok(TRANSLATIONS.as.footer.phaseNotice.includes('লাইভ গণনা শীঘ্ৰেই আহি আছে'));
+  assert.ok(TRANSLATIONS.as.footer.copyright.includes('জ্যোতিষসেতু'));
+});
+
 

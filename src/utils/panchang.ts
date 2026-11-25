@@ -56,7 +56,7 @@ export const PANCHANG_CITIES: readonly PanchangCity[] = [
   {
     id: 'kolkata',
     names: { en: 'Kolkata', hi: 'कोलकाता', as: 'কলকাতা' },
-    regions: { en: 'West Bengal', hi: 'पश्चिम बंगाल', as: 'পশ্চিমবঙ্গ' },
+    regions: { en: 'West Bengal', hi: 'पश्चिम बंगाल', as: 'পশ্চিমবংগ' },
     coordinates: '22.57° N, 88.36° E',
     timezone: 'IST (UTC+05:30)',
   },
@@ -128,13 +128,13 @@ export function savePanchangCity(cityId: PanchangCityId, storage?: StorageLike |
 const WEEKDAYS: Record<Language, readonly string[]> = {
   en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   hi: ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'],
-  as: ['দেওবাৰ', 'সোমবাৰ', 'মঙ্গলবাৰ', 'বুধবাৰ', 'বৃহস্পতিবাৰ', 'শুকুৰবাৰ', 'শনিবাৰ'],
+  as: ['দেওবাৰ', 'সোমবাৰ', 'মঙলবাৰ', 'বুধবাৰ', 'বৃহস্পতিবাৰ', 'শুকুৰবাৰ', 'শনিবাৰ'],
 };
 
 const VEDIC_VARAS: Record<Language, readonly string[]> = {
   en: ['Ravivara', 'Somavara', 'Mangalavara', 'Budhavara', 'Guruvara', 'Shukravara', 'Shanivara'],
   hi: ['रविवार', 'सोमवार', 'मंगलवार', 'बुधवार', 'गुरुवार', 'शुक्रवार', 'शनिवार'],
-  as: ['ৰবিবাৰ', 'সোমবাৰ', 'মঙ্গলবাৰ', 'বুধবাৰ', 'বৃহস্পতিবাৰ', 'শুক্ৰবাৰ', 'শনিবাৰ'],
+  as: ['ৰবিবাৰ', 'সোমবাৰ', 'মঙলবাৰ', 'বুধবাৰ', 'বৃহস্পতিবাৰ', 'শুক্ৰবাৰ', 'শনিবাৰ'],
 };
 
 const MONTHS: Record<Language, readonly string[]> = {

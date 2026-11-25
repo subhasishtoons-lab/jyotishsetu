@@ -13,7 +13,7 @@ interface BlogPageProps {
 type FilterCategory = 'all' | BlogCategoryId;
 
 export function BlogPage({ articleSlug }: BlogPageProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const [categoryFilter, setCategoryFilter] = useState<FilterCategory>('all');
 
   const selectedArticle = articleSlug
@@ -64,7 +64,7 @@ export function BlogPage({ articleSlug }: BlogPageProps) {
               <p
                 key={index}
                 className={
-                  index === 0
+                  index === 0 && language === 'en'
                     ? 'first-letter:text-4xl first-letter:font-display first-letter:font-semibold first-letter:text-[#351016] first-letter:mr-1'
                     : ''
                 }

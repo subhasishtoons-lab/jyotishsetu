@@ -20,6 +20,7 @@ import {
   formatPanchangDate,
   getPanchangCityById,
   loadSavedPanchangCity,
+  localizeDigits,
 } from '../utils/panchang';
 import type { ToolId } from '../i18n/types';
 import { Link } from '../components/Link';
@@ -472,7 +473,9 @@ export function HomePage() {
                   className="p-6 rounded-lg bg-[#2A0B11] border border-[#D8AD59]/30"
                 >
                   <div className="flex items-center justify-between text-xs text-[#D8AD59]">
-                    <span className="font-mono tabular-nums">0{idx + 1}</span>
+                    <span className="font-mono tabular-nums">
+                      {localizeDigits(`0${idx + 1}`, language)}
+                    </span>
                     <span>{t.quickTools.statusComingSoon}</span>
                   </div>
                   <h3 className="mt-3 font-display text-lg font-semibold text-[#F8F0E3]">

@@ -87,9 +87,9 @@ export function HoroscopePage({ selectedSignId }: HoroscopePageProps) {
                     }`}
                   />
                   <div className="min-w-0">
-                    <p className="font-display text-sm font-semibold truncate">{sign.name}</p>
+                    <p className="font-display text-sm font-semibold leading-snug">{sign.name}</p>
                     <p
-                      className={`text-[11px] truncate ${
+                      className={`text-[11px] leading-tight mt-0.5 ${
                         isSelected ? 'text-[#EBD08D]/85' : 'text-[#8C5320]'
                       }`}
                     >
