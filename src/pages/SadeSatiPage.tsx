@@ -5,7 +5,6 @@ import { computeSadeSati, formatDMS } from '../utils/vedicAstrology';
 import {
   formatDateInTimeZone,
   formatUtcOffsetLabel,
-  getPanchangCityById,
   localizeDigits,
 } from '../utils/panchang';
 import {
@@ -18,6 +17,7 @@ import {
   BirthDetailsForm,
   createDefaultBirthFormState,
   formStateToBirthInput,
+  validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
 import { SectionHeading } from '../components/SectionHeading';
@@ -126,14 +126,14 @@ export function SadeSatiPage() {
   );
   const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
 
-  const submittedInput = useMemo(() => formStateToBirthInput(submittedForm), [submittedForm]);
-  const activeCity = useMemo(
-    () => (submittedForm.useCustomCoords ? null : getPanchangCityById(submittedForm.cityId)),
-    [submittedForm],
+  const submittedPlace = useMemo(
+    () => validateBirthFormState(submittedForm, language).resolved,
+    [submittedForm, language],
   );
-  const ianaTimeZone = activeCity?.ianaTimeZone ?? null;
-  const timezoneBadge = activeCity
-    ? activeCity.timezone
+  const submittedInput = useMemo(() => formStateToBirthInput(submittedForm), [submittedForm]);
+  const ianaTimeZone = submittedPlace?.ianaTimeZone ?? null;
+  const timezoneBadge = submittedPlace
+    ? `${submittedPlace.displayName} · ${submittedPlace.timezoneLabel}`
     : formatUtcOffsetLabel(submittedInput.utcOffsetMinutes);
 
   const formatTransitDate = (utcDate: Date) =>

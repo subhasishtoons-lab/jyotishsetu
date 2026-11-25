@@ -20,8 +20,10 @@ import {
   BirthDetailsForm,
   createDefaultBirthFormState,
   formStateToBirthInput,
+  validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
 
@@ -101,13 +103,22 @@ export function NakshatraFinderPage() {
   const { language } = useLanguage();
   const ui = CALC_UI[language];
   const copy = COPY[language];
+  const bpUi = BIRTHPLACE_UI[language];
 
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1996-05-15', timeStr: '08:30', cityId: 'guwahati' }),
   );
-  const [submittedInput, setSubmittedInput] = useState(() => formStateToBirthInput(form));
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
 
-  const result = useMemo(() => computeNakshatraDetails(submittedInput), [submittedInput]);
+  const submittedBirthplace = useMemo(
+    () => validateBirthFormState(submittedForm, language).resolved,
+    [submittedForm, language],
+  );
+
+  const result = useMemo(
+    () => computeNakshatraDetails(formStateToBirthInput(submittedForm)),
+    [submittedForm],
+  );
   const syllables = NAKSHATRA_PADA_SYLLABLES[language][result.nakshatraIndex];
   const activeSyllable = syllables[result.pada - 1];
 
@@ -149,7 +160,7 @@ export function NakshatraFinderPage() {
               title={copy.formTitle}
               value={form}
               onChange={setForm}
-              onSubmit={() => setSubmittedInput(formStateToBirthInput(form))}
+              onSubmit={() => setSubmittedForm(form)}
               submitLabel={copy.submitBtn}
               showName={false}
             />
@@ -158,7 +169,7 @@ export function NakshatraFinderPage() {
           <div className="lg:col-span-8 space-y-6">
             {/* Primary Nakshatra & Pada Highlight */}
             <div className="p-6 sm:p-8 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold tracking-wider text-[#EBD08D]">
                   {ui.birthNakshatraLabel} · {copy.padaLabel} {localizeDigits(result.pada, language)}
                 </p>
@@ -170,6 +181,21 @@ export function NakshatraFinderPage() {
                   {localizeDigits(formatDMS(result.moonDegreeInSign), language)} (
                   {RASHI_NAMES[language][result.moonRashiIndex]})
                 </p>
+                {submittedBirthplace && (
+                  <p className="mt-2.5 text-xs text-[#EBD08D]/90 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="inline-block px-2 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/40 text-[10px] font-semibold text-[#EBD08D]">
+                      {submittedBirthplace.mode === 'custom'
+                        ? bpUi.customBadge
+                        : bpUi.presetBadge}
+                    </span>
+                    <span className="font-medium text-[#F8F0E3]">
+                      {submittedBirthplace.displayName}
+                    </span>
+                    <span className="font-mono tabular-nums text-[#EBD08D]/85">
+                      · {submittedBirthplace.coordinatesLabel} · {submittedBirthplace.timezoneLabel}
+                    </span>
+                  </p>
+                )}
               </div>
 
               <div className="px-5 py-4 rounded-lg bg-[#24090E] border border-[#D8AD59]/50 text-center shrink-0">

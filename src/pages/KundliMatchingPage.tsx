@@ -5,6 +5,7 @@ import {
   BirthDetailsForm,
   createDefaultBirthFormState,
   formStateToBirthInput,
+  validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
 import {
@@ -13,12 +14,14 @@ import {
   NAKSHATRA_NAMES,
   RASHI_NAMES,
 } from '../i18n/vedicLabels';
+import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { localizeDigits } from '../utils/panchang';
 import { computeAshtakoota } from '../utils/vedicAstrology';
 
 export function KundliMatchingPage() {
   const { language, t } = useLanguage();
   const ui = CALC_UI[language];
+  const bpUi = BIRTHPLACE_UI[language];
   const spec = t.comingSoonPages.matching;
 
   const [partnerA, setPartnerA] = useState<BirthFormState>(() =>
@@ -28,6 +31,19 @@ export function KundliMatchingPage() {
     createDefaultBirthFormState({ name: '', dateStr: '1996-11-04', timeStr: '14:40', cityId: 'guwahati' }),
   );
   const [submittedPair, setSubmittedPair] = useState({ a: partnerA, b: partnerB });
+  const [showValidation, setShowValidation] = useState(false);
+
+  const validA = useMemo(() => validateBirthFormState(partnerA, language), [partnerA, language]);
+  const validB = useMemo(() => validateBirthFormState(partnerB, language), [partnerB, language]);
+
+  const submittedPlaceA = useMemo(
+    () => validateBirthFormState(submittedPair.a, language).resolved,
+    [submittedPair.a, language],
+  );
+  const submittedPlaceB = useMemo(
+    () => validateBirthFormState(submittedPair.b, language).resolved,
+    [submittedPair.b, language],
+  );
 
   const result = useMemo(
     () =>
@@ -40,6 +56,10 @@ export function KundliMatchingPage() {
 
   const handleMatchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setShowValidation(true);
+    if (!validA.valid || !validB.valid) {
+      return;
+    }
     setSubmittedPair({ a: partnerA, b: partnerB });
   };
 
@@ -68,13 +88,14 @@ export function KundliMatchingPage() {
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-10">
         {/* Dual Partner Forms */}
-        <form onSubmit={handleMatchSubmit} className="space-y-6">
+        <form onSubmit={handleMatchSubmit} noValidate className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <BirthDetailsForm
               idPrefix="match-a"
               title={ui.partnerA}
               value={partnerA}
               onChange={setPartnerA}
+              showValidation={showValidation}
               compact
             />
             <BirthDetailsForm
@@ -82,14 +103,21 @@ export function KundliMatchingPage() {
               title={ui.partnerB}
               value={partnerB}
               onChange={setPartnerB}
+              showValidation={showValidation}
               compact
             />
           </div>
 
+          {showValidation && (!validA.valid || !validB.valid) && (
+            <p role="alert" className="text-center text-xs sm:text-sm font-medium text-[#8E1C28]">
+              {bpUi.coordinatesRequiredTitle}
+            </p>
+          )}
+
           <div className="flex justify-center">
             <button
               type="submit"
-              className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-all cursor-pointer shadow-md"
+              className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-colors cursor-pointer shadow-md"
             >
               <HeartHandshake className="w-4 h-4" aria-hidden="true" />
               <span>{ui.matchBtn}</span>
@@ -128,6 +156,12 @@ export function KundliMatchingPage() {
                 <p className="text-[#D8AD59] font-semibold">
                   {submittedPair.a.name.trim() || ui.partnerA}
                 </p>
+                {submittedPlaceA && (
+                  <p className="mt-1 text-[11px] text-[#EBD08D]/85">
+                    {submittedPlaceA.displayName} ·{' '}
+                    <span className="font-mono">{submittedPlaceA.coordinatesLabel}</span>
+                  </p>
+                )}
                 <p className="mt-1.5 text-[#F8F0E3]">
                   {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][result.personA.moonRashiIndex]}</strong>
                 </p>
@@ -141,6 +175,12 @@ export function KundliMatchingPage() {
                 <p className="text-[#D8AD59] font-semibold">
                   {submittedPair.b.name.trim() || ui.partnerB}
                 </p>
+                {submittedPlaceB && (
+                  <p className="mt-1 text-[11px] text-[#EBD08D]/85">
+                    {submittedPlaceB.displayName} ·{' '}
+                    <span className="font-mono">{submittedPlaceB.coordinatesLabel}</span>
+                  </p>
+                )}
                 <p className="mt-1.5 text-[#F8F0E3]">
                   {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][result.personB.moonRashiIndex]}</strong>
                 </p>

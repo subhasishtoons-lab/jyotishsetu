@@ -5,6 +5,7 @@ import {
   BirthDetailsForm,
   createDefaultBirthFormState,
   formStateToBirthInput,
+  validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
 import { KundliChartSvg, type ChartStyle, type ChartType } from '../components/KundliChartSvg';
@@ -15,12 +16,14 @@ import {
   PLANET_NAMES,
   RASHI_NAMES,
 } from '../i18n/vedicLabels';
+import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { formatShortDate, localizeDigits } from '../utils/panchang';
 import { computeKundli, formatDMS } from '../utils/vedicAstrology';
 
 export function KundliPage() {
   const { language, t } = useLanguage();
   const ui = CALC_UI[language];
+  const bpUi = BIRTHPLACE_UI[language];
   const spec = t.comingSoonPages.kundli;
 
   const [formState, setFormState] = useState<BirthFormState>(() =>
@@ -30,6 +33,10 @@ export function KundliPage() {
   const [chartStyle, setChartStyle] = useState<ChartStyle>('north');
   const [chartType, setChartType] = useState<ChartType>('lagna');
 
+  const submittedPlace = useMemo(
+    () => validateBirthFormState(submittedState, language).resolved,
+    [submittedState, language],
+  );
   const birthInput = useMemo(() => formStateToBirthInput(submittedState), [submittedState]);
   const kundli = useMemo(() => computeKundli(birthInput), [birthInput]);
 
@@ -90,11 +97,27 @@ export function KundliPage() {
             {/* Key Natal Summary Strip */}
             <div className="p-6 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/40">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#D8AD59]/25">
-                <div className="flex items-center gap-2.5">
-                  <Compass className="w-5 h-5 text-[#E99A32]" aria-hidden="true" />
-                  <h2 className="font-display text-xl font-semibold text-[#F8F0E3]">
-                    {submittedState.name.trim() || spec.title}
-                  </h2>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5">
+                    <Compass className="w-5 h-5 text-[#E99A32] shrink-0" aria-hidden="true" />
+                    <h2 className="font-display text-xl font-semibold text-[#F8F0E3]">
+                      {submittedState.name.trim() || spec.title}
+                    </h2>
+                  </div>
+                  {submittedPlace && (
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#EBD08D]/90">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/45 text-[#F5DC9B]">
+                        {submittedPlace.mode === 'custom' ? bpUi.customBadge : bpUi.presetBadge}
+                      </span>
+                      <span className="font-medium text-[#F8F0E3]">
+                        {submittedPlace.displayName}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <span className="font-mono tabular-nums text-[11px]">
+                        {submittedPlace.coordinatesLabel} · {submittedPlace.timezoneLabel}
+                      </span>
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"

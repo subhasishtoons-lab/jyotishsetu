@@ -59,7 +59,20 @@ import {
 import {
   createDefaultBirthFormState,
   formStateToBirthInput,
+  formStateToBirthInputOrNull,
+  validateBirthFormState,
 } from '../components/BirthDetailsForm';
+import {
+  BIRTHPLACE_UI,
+  createCustomBirthplace,
+  createEmptyCustomBirthplace,
+  createPresetBirthplace,
+  getAvailableIanaTimeZones,
+  parseSignedCoordinate,
+  resolveIanaUtcOffsetMinutes,
+  searchPresetCities,
+  validateBirthplaceSelection,
+} from './birthplace';
 import {
   RASHI_NAMES,
   PLANET_NAMES,
@@ -1209,5 +1222,280 @@ test('Trust, disclaimer transparency, and trilingual orthography checks', () => 
     'Assamese dictionary must use Assamese ৰ (U+09F0), never Bengali র (U+09B0)',
   );
 });
+
+// ============================================================================
+// UNIVERSAL BIRTHPLACE SELECTOR TESTS
+// ============================================================================
+
+test('Birthplace 1: Searchable preset selector preserves all 18 cities and matches Guwahati & Dibrugarh across languages', () => {
+  assert.equal(PANCHANG_CITIES.length, 18);
+  assert.equal(searchPresetCities('').length, 18);
+
+  const ghyEn = searchPresetCities('Guwahati');
+  assert.equal(ghyEn.length, 1);
+  assert.equal(ghyEn[0].id, 'guwahati');
+
+  const dbrEn = searchPresetCities('Dibrugarh');
+  assert.equal(dbrEn.length, 1);
+  assert.equal(dbrEn[0].id, 'dibrugarh');
+
+  const assamMatches = searchPresetCities('Assam').map((c) => c.id);
+  assert.ok(assamMatches.includes('guwahati'));
+  assert.ok(assamMatches.includes('dibrugarh'));
+
+  // Hindi and Assamese native script searches
+  assert.ok(searchPresetCities('গুৱাহাটী').some((c) => c.id === 'guwahati'));
+  assert.ok(searchPresetCities('डिब्रूगढ़').some((c) => c.id === 'dibrugarh'));
+
+  // Guwahati vs Dibrugarh produce distinct sidereal Ascendants and Sunrise/Sunset times
+  const ghyForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    cityId: 'guwahati',
+  });
+  const dbrForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    cityId: 'dibrugarh',
+  });
+  const ghyInput = formStateToBirthInput(ghyForm);
+  const dbrInput = formStateToBirthInput(dbrForm);
+  const ghyKundli = computeKundli(ghyInput);
+  const dbrKundli = computeKundli(dbrInput);
+  assert.ok(
+    Math.abs(ghyKundli.ascendantLon - dbrKundli.ascendantLon) > 2.0,
+    'Dibrugarh (~3.18° east of Guwahati) must produce a meaningfully distinct Ascendant',
+  );
+
+  const ghyP = computeLivePanchang(2026, 5, 15, ghyInput.lat, ghyInput.lon, 330);
+  const dbrP = computeLivePanchang(2026, 5, 15, dbrInput.lat, dbrInput.lon, 330);
+  assert.ok(ghyP.sunrise && dbrP.sunrise);
+  // Dibrugarh is further east & north -> sunrise is earlier than Guwahati by > 10 minutes
+  assert.ok(ghyP.sunrise.getTime() - dbrP.sunrise.getTime() > 10 * 60 * 1000);
+});
+
+test('Birthplace 2: Custom village (Majuli) resolves exact coordinates without falling back to Guwahati', () => {
+  const majuliSelection = createCustomBirthplace({
+    placeName: 'Majuli',
+    district: 'Majuli',
+    state: 'Assam',
+    country: 'India',
+    latValue: '26.9500',
+    latDir: 'N',
+    lonValue: '94.1667',
+    lonDir: 'E',
+    ianaTimeZone: 'Asia/Kolkata',
+  });
+
+  const validation = validateBirthplaceSelection(majuliSelection, '1996-05-15', '08:30', 'en');
+  assert.equal(validation.valid, true);
+  assert.ok(validation.resolved);
+  assert.equal(validation.resolved.mode, 'custom');
+  // Deduplicates identical village & district names cleanly
+  assert.equal(validation.resolved.displayName, 'Majuli, Assam, India');
+  assert.equal(validation.resolved.lat, 26.95);
+  assert.equal(validation.resolved.lon, 94.1667);
+  assert.equal(validation.resolved.utcOffsetMinutes, 330);
+  assert.equal(validation.resolved.coordinatesLabel, '26.9500° N, 94.1667° E');
+
+  const majuliForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    birthplace: majuliSelection,
+  });
+  const guwahatiForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    cityId: 'guwahati',
+  });
+
+  const majuliInput = formStateToBirthInput(majuliForm);
+  const majuliKundli = computeKundli(majuliInput);
+  const guwahatiKundli = computeKundli(formStateToBirthInput(guwahatiForm));
+
+  assert.equal(majuliInput.lat, 26.95);
+  assert.equal(majuliInput.lon, 94.1667);
+  assert.ok(
+    Math.abs(majuliKundli.ascendantLon - guwahatiKundli.ascendantLon) > 1.5,
+    'Custom Majuli village must compute Ascendant from Majuli coordinates, never Guwahati',
+  );
+});
+
+test('Birthplace 3: Missing or out-of-range custom coordinates are rejected with zero silent fallback to Guwahati', () => {
+  const emptyCustom = createCustomBirthplace(createEmptyCustomBirthplace({ placeName: 'Majuli' }));
+  const emptyCheck = validateBirthplaceSelection(emptyCustom, '1996-05-15', '08:30', 'en');
+  assert.equal(emptyCheck.valid, false);
+  assert.equal(emptyCheck.resolved, null);
+  assert.equal(emptyCheck.errors.latMissing, true);
+  assert.equal(emptyCheck.errors.lonMissing, true);
+
+  const emptyForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    birthplace: emptyCustom,
+  });
+  assert.equal(validateBirthFormState(emptyForm, 'en').valid, false);
+  assert.equal(formStateToBirthInputOrNull(emptyForm), null);
+  assert.throws(() => formStateToBirthInput(emptyForm));
+
+  // Missing longitude only
+  const missingLon = createCustomBirthplace({
+    placeName: 'Barpeta',
+    latValue: '26.3229',
+    latDir: 'N',
+    lonValue: '',
+    lonDir: 'E',
+    ianaTimeZone: 'Asia/Kolkata',
+  });
+  const missingLonCheck = validateBirthplaceSelection(missingLon, '1996-05-15', '08:30', 'en');
+  assert.equal(missingLonCheck.valid, false);
+  assert.equal(missingLonCheck.resolved, null);
+  assert.equal(missingLonCheck.errors.latMissing, undefined);
+  assert.equal(missingLonCheck.errors.lonMissing, true);
+
+  // Out-of-range latitude (95° N) and longitude (185° E)
+  const outOfRange = createCustomBirthplace({
+    placeName: 'Invalid Coords Place',
+    latValue: '95',
+    latDir: 'N',
+    lonValue: '185',
+    lonDir: 'E',
+    ianaTimeZone: 'UTC',
+  });
+  const rangeCheck = validateBirthplaceSelection(outOfRange, '1996-05-15', '08:30', 'en');
+  assert.equal(rangeCheck.valid, false);
+  assert.equal(rangeCheck.resolved, null);
+  assert.equal(rangeCheck.errors.latInvalid, true);
+  assert.equal(rangeCheck.errors.lonInvalid, true);
+
+  // Invalid IANA timezone string
+  const badTz = createCustomBirthplace({
+    placeName: 'Test Town',
+    latValue: '26.0',
+    latDir: 'N',
+    lonValue: '91.0',
+    lonDir: 'E',
+    ianaTimeZone: 'Mars/Olympus_Mons',
+  });
+  const badTzCheck = validateBirthplaceSelection(badTz, '1996-05-15', '08:30', 'en');
+  assert.equal(badTzCheck.valid, false);
+  assert.equal(badTzCheck.resolved, null);
+  assert.equal(badTzCheck.errors.timezoneInvalid, true);
+});
+
+test('Birthplace 4: Southern and Western hemisphere coordinates & signed/hemisphere parsing', () => {
+  // Signed inputs with matching hemisphere must NOT double-negate
+  assert.equal(parseSignedCoordinate('34.6037', 'S'), -34.6037);
+  assert.equal(parseSignedCoordinate('-34.6037', 'S'), -34.6037);
+  assert.equal(parseSignedCoordinate('58.3816', 'W'), -58.3816);
+  assert.equal(parseSignedCoordinate('-58.3816', 'W'), -58.3816);
+  assert.equal(parseSignedCoordinate('0', 'N'), 0);
+  assert.equal(parseSignedCoordinate('', 'N'), null);
+
+  // Sydney, Australia (Southern + Eastern hemisphere, Southern Hemisphere DST)
+  const sydney = createCustomBirthplace({
+    placeName: 'Sydney',
+    state: 'New South Wales',
+    country: 'Australia',
+    latValue: '33.8688',
+    latDir: 'S',
+    lonValue: '151.2093',
+    lonDir: 'E',
+    ianaTimeZone: 'Australia/Sydney',
+  });
+  const sydneySummer = validateBirthplaceSelection(sydney, '1995-01-15', '10:00', 'en');
+  const sydneyWinter = validateBirthplaceSelection(sydney, '1995-07-15', '10:00', 'en');
+  assert.equal(sydneySummer.valid, true);
+  assert.equal(sydneyWinter.valid, true);
+  assert.equal(sydneySummer.resolved!.lat, -33.8688);
+  assert.equal(sydneySummer.resolved!.lon, 151.2093);
+  assert.equal(sydneySummer.resolved!.utcOffsetMinutes, 660); // AEDT UTC+11:00
+  assert.equal(sydneyWinter.resolved!.utcOffsetMinutes, 600); // AEST UTC+10:00
+  assert.equal(sydneySummer.resolved!.coordinatesLabel, '33.8688° S, 151.2093° E');
+
+  // Verify Kundli & Panchang compute cleanly for Sydney
+  const sydneyKundli = computeKundli(
+    formStateToBirthInput(
+      createDefaultBirthFormState({ dateStr: '1995-01-15', timeStr: '10:00', birthplace: sydney }),
+    ),
+  );
+  assert.ok(sydneyKundli.ascendantLon >= 0 && sydneyKundli.ascendantLon < 360);
+  const sydneyPanchang = computeLivePanchang(2026, 1, 15, -33.8688, 151.2093, 660);
+  assert.ok(sydneyPanchang.sunrise && sydneyPanchang.sunset);
+
+  // Buenos Aires, Argentina (Southern + Western hemisphere)
+  const buenosAires = createCustomBirthplace({
+    placeName: 'Buenos Aires',
+    country: 'Argentina',
+    latValue: '34.6037',
+    latDir: 'S',
+    lonValue: '58.3816',
+    lonDir: 'W',
+    ianaTimeZone: 'America/Argentina/Buenos_Aires',
+  });
+  const baRes = validateBirthplaceSelection(buenosAires, '1998-06-21', '14:30', 'en');
+  assert.equal(baRes.valid, true);
+  assert.equal(baRes.resolved!.lat, -34.6037);
+  assert.equal(baRes.resolved!.lon, -58.3816);
+  assert.equal(baRes.resolved!.utcOffsetMinutes, -180); // UTC-03:00
+  assert.equal(baRes.resolved!.coordinatesLabel, '34.6037° S, 58.3816° W');
+
+  const baKundli = computeKundli(
+    formStateToBirthInput(
+      createDefaultBirthFormState({
+        dateStr: '1998-06-21',
+        timeStr: '14:30',
+        birthplace: buenosAires,
+      }),
+    ),
+  );
+  assert.ok(baKundli.ascendantLon >= 0 && baKundli.ascendantLon < 360);
+});
+
+test('Birthplace 5: Historical timezone rules (pre-1906 India LMT, 1943 War Time, UK BST, US EDT) and pure Assamese UI', () => {
+  // Pre-1906 India Local Mean Time for a custom village (Majuli: 94.1667° E -> +377 min)
+  const pre1906 = resolveIanaUtcOffsetMinutes('Asia/Kolkata', '1863-01-12', '06:30', 94.1667);
+  assert.equal(pre1906.isHistoricalLmt, true);
+  assert.equal(pre1906.offsetMinutes, Math.round(94.1667 * 4)); // +377 min
+
+  // 1943 India War Time (UTC+06:30 = +390 min)
+  const warTime = resolveIanaUtcOffsetMinutes('Asia/Kolkata', '1943-08-15', '12:00', 91.7362);
+  assert.equal(warTime.isHistoricalLmt, false);
+  assert.equal(warTime.offsetMinutes, 390);
+
+  // 1990 London BST (+60) vs GMT (0)
+  assert.equal(resolveIanaUtcOffsetMinutes('Europe/London', '1990-07-15', '12:00', -0.1276).offsetMinutes, 60);
+  assert.equal(resolveIanaUtcOffsetMinutes('Europe/London', '1990-01-15', '12:00', -0.1276).offsetMinutes, 0);
+
+  // 1996 New York EDT (-240) vs EST (-300)
+  assert.equal(resolveIanaUtcOffsetMinutes('America/New_York', '1996-07-15', '12:00', -74.006).offsetMinutes, -240);
+  assert.equal(resolveIanaUtcOffsetMinutes('America/New_York', '1996-01-15', '12:00', -74.006).offsetMinutes, -300);
+
+  // Preset wrapper also resolves date-specific offsets cleanly
+  const presetLondonSummer = validateBirthplaceSelection(
+    createPresetBirthplace('london'),
+    '1990-07-15',
+    '12:00',
+    'en',
+  );
+  assert.equal(presetLondonSummer.valid, true);
+  assert.equal(presetLondonSummer.resolved!.utcOffsetMinutes, 60);
+
+  // Global IANA timezone list is populated
+  const tzList = getAvailableIanaTimeZones();
+  assert.ok(tzList.length >= 50);
+  assert.ok(tzList.some((tz) => tz.iana === 'Asia/Kolkata'));
+  assert.ok(tzList.some((tz) => tz.iana === 'Australia/Sydney'));
+  assert.ok(tzList.some((tz) => tz.iana === 'America/Argentina/Buenos_Aires'));
+
+  // Pure Assamese orthography check on BIRTHPLACE_UI.as: zero Bengali ra (U+09B0 'র')
+  const asBpSerialized = JSON.stringify(BIRTHPLACE_UI.as);
+  assert.equal(
+    asBpSerialized.includes('\u09B0'),
+    false,
+    'BIRTHPLACE_UI.as must use pure Assamese ৰ (U+09F0), never Bengali র (U+09B0)',
+  );
+});
+
 
 

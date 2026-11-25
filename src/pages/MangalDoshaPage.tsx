@@ -8,8 +8,10 @@ import {
   BirthDetailsForm,
   createDefaultBirthFormState,
   formStateToBirthInput,
+  validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
 
@@ -71,16 +73,22 @@ export function MangalDoshaPage() {
   const { language } = useLanguage();
   const ui = CALC_UI[language];
   const copy = COPY[language];
+  const bpUi = BIRTHPLACE_UI[language];
 
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1996-05-15', timeStr: '08:30', cityId: 'guwahati' }),
   );
-  const [submittedInput, setSubmittedInput] = useState(() => formStateToBirthInput(form));
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
+
+  const submittedBirthplace = useMemo(
+    () => validateBirthFormState(submittedForm, language).resolved,
+    [submittedForm, language],
+  );
 
   const { kundli, result } = useMemo(() => {
-    const k = computeKundli(submittedInput);
+    const k = computeKundli(formStateToBirthInput(submittedForm));
     return { kundli: k, result: evaluateMangalDoshaFromKundli(k) };
-  }, [submittedInput]);
+  }, [submittedForm]);
 
   const isSevere = result.severity === 'present' || result.severity === 'partial';
 
@@ -132,7 +140,7 @@ export function MangalDoshaPage() {
               title={copy.formTitle}
               value={form}
               onChange={setForm}
-              onSubmit={() => setSubmittedInput(formStateToBirthInput(form))}
+              onSubmit={() => setSubmittedForm(form)}
               submitLabel={copy.submitBtn}
               showName={false}
             />
@@ -161,7 +169,7 @@ export function MangalDoshaPage() {
                     <ShieldCheck className="w-5 h-5" aria-hidden="true" />
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p
                     className={`text-xs font-semibold tracking-wider ${
                       isSevere ? 'text-[#EBD08D]' : 'text-[#2B5A3C]'
@@ -173,6 +181,29 @@ export function MangalDoshaPage() {
                   <h2 className="mt-1 font-display text-2xl font-semibold">
                     {ui.mangalSeverityTitles[result.severity]}
                   </h2>
+                  {submittedBirthplace && (
+                    <p
+                      className={`mt-2 text-xs flex flex-wrap items-center gap-x-2 gap-y-1 ${
+                        isSevere ? 'text-[#EBD08D]/90' : 'text-[#542D24]'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                          isSevere
+                            ? 'bg-[#24090E] border-[#D8AD59]/40 text-[#EBD08D]'
+                            : 'bg-[#EFE3CE] border-[#D8AD59]/50 text-[#351016]'
+                        }`}
+                      >
+                        {submittedBirthplace.mode === 'custom'
+                          ? bpUi.customBadge
+                          : bpUi.presetBadge}
+                      </span>
+                      <span className="font-medium">{submittedBirthplace.displayName}</span>
+                      <span className="font-mono tabular-nums opacity-90">
+                        · {submittedBirthplace.coordinatesLabel} · {submittedBirthplace.timezoneLabel}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,68 +1,152 @@
-import React, { useState } from 'react';
-import { MapPin, Sparkles } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import type { Language } from '../i18n/types';
 import { CALC_UI } from '../i18n/vedicLabels';
+import { type PanchangCityId } from '../utils/panchang';
 import {
-  PANCHANG_CITIES,
-  getCityUtcOffsetMinutesForDate,
-  getPanchangCityById,
-  type PanchangCityId,
-} from '../utils/panchang';
+  BIRTHPLACE_UI,
+  createCustomBirthplace,
+  createPresetBirthplace,
+  validateBirthplaceSelection,
+  type BirthplaceSelection,
+  type BirthplaceValidationResult,
+  type ResolvedBirthplace,
+} from '../utils/birthplace';
+import { BirthplaceSelector } from './BirthplaceSelector';
 import type { BirthInput } from '../utils/vedicAstrology';
 
 export interface BirthFormState {
   name: string;
   dateStr: string;
   timeStr: string;
-  cityId: PanchangCityId;
-  useCustomCoords: boolean;
-  customLat: string;
-  customLon: string;
-  customUtcHours: string;
+  birthplace: BirthplaceSelection;
+  /** Optional explicit UTC offset override (hours) preserved for backward compatibility with legacy test helpers. */
+  legacyUtcOffsetHours?: number;
+}
+
+export interface BirthFormInitOverrides {
+  name?: string;
+  dateStr?: string;
+  timeStr?: string;
+  cityId?: PanchangCityId;
+  birthplace?: BirthplaceSelection;
+  /** Legacy test/init properties converted cleanly into BirthplaceSelection */
+  useCustomCoords?: boolean;
+  customLat?: string;
+  customLon?: string;
+  customUtcHours?: string;
 }
 
 export function createDefaultBirthFormState(
-  overrides: Partial<BirthFormState> = {},
+  overrides: BirthFormInitOverrides = {},
 ): BirthFormState {
+  const defaultCity: PanchangCityId = overrides.cityId ?? 'guwahati';
+  let birthplace: BirthplaceSelection;
+  let legacyUtcOffsetHours: number | undefined;
+
+  if (overrides.birthplace) {
+    birthplace = overrides.birthplace;
+  } else if (overrides.useCustomCoords) {
+    const rawLat = (overrides.customLat ?? '').trim();
+    const rawLon = (overrides.customLon ?? '').trim();
+    const latNegative = rawLat.startsWith('-');
+    const lonNegative = rawLon.startsWith('-');
+    const parsedUtc =
+      overrides.customUtcHours !== undefined && overrides.customUtcHours.trim() !== ''
+        ? Number(overrides.customUtcHours)
+        : NaN;
+    if (Number.isFinite(parsedUtc)) {
+      legacyUtcOffsetHours = parsedUtc;
+    }
+
+    birthplace = createCustomBirthplace(
+      {
+        placeName: 'Custom Coordinates',
+        latValue: latNegative ? rawLat.slice(1) : rawLat,
+        latDir: latNegative ? 'S' : 'N',
+        lonValue: lonNegative ? rawLon.slice(1) : rawLon,
+        lonDir: lonNegative ? 'W' : 'E',
+        ianaTimeZone: parsedUtc === 0 ? 'UTC' : 'Asia/Kolkata',
+      },
+      defaultCity,
+    );
+  } else {
+    birthplace = createPresetBirthplace(defaultCity);
+  }
+
   return {
-    name: '',
-    dateStr: '1996-05-15',
-    timeStr: '08:30',
-    cityId: 'guwahati',
-    useCustomCoords: false,
-    customLat: '26.1445',
-    customLon: '91.7362',
-    customUtcHours: '5.5',
-    ...overrides,
+    name: overrides.name ?? '',
+    dateStr: overrides.dateStr ?? '1996-05-15',
+    timeStr: overrides.timeStr ?? '08:30',
+    birthplace,
+    ...(legacyUtcOffsetHours !== undefined ? { legacyUtcOffsetHours } : {}),
   };
 }
 
-function parseFiniteNumber(raw: string, fallback: number): number {
-  const trimmed = raw.trim();
-  if (trimmed === '') return fallback;
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-export function formStateToBirthInput(state: BirthFormState): BirthInput {
-  const city = getPanchangCityById(state.cityId);
+export function validateBirthFormState(
+  state: BirthFormState,
+  language: Language = 'en',
+): BirthplaceValidationResult {
   const dateStr = state.dateStr || '1996-05-15';
   const timeStr = state.timeStr || '08:30';
-  const lat = state.useCustomCoords ? parseFiniteNumber(state.customLat, city.lat) : city.lat;
-  const lon = state.useCustomCoords ? parseFiniteNumber(state.customLon, city.lon) : city.lon;
-  const resolvedCityOffset = getCityUtcOffsetMinutesForDate(city, dateStr, timeStr);
-  const utcOffsetMinutes = state.useCustomCoords
-    ? Math.round(parseFiniteNumber(state.customUtcHours, resolvedCityOffset / 60) * 60)
-    : resolvedCityOffset;
+  const result = validateBirthplaceSelection(state.birthplace, dateStr, timeStr, language);
+  if (
+    result.valid &&
+    result.resolved &&
+    state.birthplace.mode === 'custom' &&
+    typeof state.legacyUtcOffsetHours === 'number' &&
+    Number.isFinite(state.legacyUtcOffsetHours)
+  ) {
+    return {
+      ...result,
+      resolved: {
+        ...result.resolved,
+        utcOffsetMinutes: Math.round(state.legacyUtcOffsetHours * 60),
+      },
+    };
+  }
+  return result;
+}
 
+/**
+ * Converts a validated BirthFormState into a BirthInput for astronomical calculations.
+ * Returns `null` if a custom birthplace has missing or invalid coordinates—NEVER silently
+ * substitutes Guwahati or another preset city.
+ */
+export function formStateToBirthInputOrNull(
+  state: BirthFormState,
+): { input: BirthInput; resolved: ResolvedBirthplace } | null {
+  const validation = validateBirthFormState(state, 'en');
+  if (!validation.valid || !validation.resolved) {
+    return null;
+  }
+  const { resolved } = validation;
   return {
-    name: state.name.trim(),
-    dateStr,
-    timeStr,
-    lat: Math.max(-66, Math.min(66, lat)),
-    lon: Math.max(-180, Math.min(180, lon)),
-    utcOffsetMinutes,
+    resolved,
+    input: {
+      name: state.name.trim(),
+      dateStr: state.dateStr || '1996-05-15',
+      timeStr: state.timeStr || '08:30',
+      lat: resolved.lat,
+      lon: resolved.lon,
+      utcOffsetMinutes: resolved.utcOffsetMinutes,
+    },
   };
+}
+
+/**
+ * Converts a valid BirthFormState into BirthInput.
+ * Throws if a custom birthplace is missing valid coordinates (never silently falls back to a preset city).
+ */
+export function formStateToBirthInput(state: BirthFormState): BirthInput {
+  const converted = formStateToBirthInputOrNull(state);
+  if (!converted) {
+    throw new Error(
+      'Cannot calculate birth chart without valid custom birthplace coordinates and timezone.',
+    );
+  }
+  return converted.input;
 }
 
 interface BirthDetailsFormProps {
@@ -73,6 +157,7 @@ interface BirthDetailsFormProps {
   submitLabel?: string;
   showName?: boolean;
   compact?: boolean;
+  showValidation?: boolean;
   idPrefix: string;
 }
 
@@ -84,21 +169,33 @@ export function BirthDetailsForm({
   submitLabel,
   showName = true,
   compact = false,
+  showValidation: externalShowValidation = false,
   idPrefix,
 }: BirthDetailsFormProps) {
   const { language } = useLanguage();
   const ui = CALC_UI[language];
-  const [error, setError] = useState<string | null>(null);
+  const bpUi = BIRTHPLACE_UI[language];
+  const [submittedAttempt, setSubmittedAttempt] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
 
-  const selectedCity = getPanchangCityById(value.cityId);
+  const validation = useMemo(
+    () => validateBirthFormState(value, language),
+    [value, language],
+  );
+
+  const showValidation = externalShowValidation || submittedAttempt;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmittedAttempt(true);
     if (!value.dateStr) {
-      setError(ui.dateLabel);
+      setDateError(ui.dateLabel);
       return;
     }
-    setError(null);
+    setDateError(null);
+    if (!validation.valid) {
+      return;
+    }
     onSubmit?.();
   };
 
@@ -167,113 +264,39 @@ export function BirthDetailsForm({
         </div>
       </div>
 
-      <div>
-        <label
-          htmlFor={`${idPrefix}-city`}
-          className="flex items-center gap-1.5 text-xs font-semibold text-[#351016] mb-1.5"
-        >
-          <MapPin className="w-3.5 h-3.5 text-[#C47616]" aria-hidden="true" />
-          <span>{ui.cityLabel}</span>
-        </label>
-        <select
-          id={`${idPrefix}-city`}
-          value={value.cityId}
-          onChange={(e) => {
-            const nextId = e.target.value as PanchangCityId;
-            const c = getPanchangCityById(nextId);
-            onChange({
-              ...value,
-              cityId: nextId,
-              customLat: String(c.lat),
-              customLon: String(c.lon),
-              customUtcHours: String(c.utcOffsetMinutes / 60),
-            });
-          }}
-          className="w-full h-11 px-3.5 rounded-md bg-white border border-[#D8AD59]/50 text-sm text-[#351016] focus:outline-none focus:border-[#B08532] cursor-pointer"
-        >
-          {PANCHANG_CITIES.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.names[language]}, {c.regions[language]} ({c.coordinates})
-            </option>
-          ))}
-        </select>
-        {!value.useCustomCoords && (
-          <p className="mt-1.5 text-[11px] text-[#542D24]/80 font-mono tabular-nums">
-            {selectedCity.coordinates} · {selectedCity.timezone}
-          </p>
-        )}
-      </div>
+      <BirthplaceSelector
+        idPrefix={idPrefix}
+        value={value.birthplace}
+        onChange={(nextBirthplace) =>
+          onChange({
+            ...value,
+            birthplace: nextBirthplace,
+            legacyUtcOffsetHours: undefined,
+          })
+        }
+        dateStr={value.dateStr || '1996-05-15'}
+        timeStr={value.timeStr || '08:30'}
+        contextKind="birthplace"
+        theme="light"
+        showValidation={showValidation}
+      />
 
-      <label className="inline-flex items-center gap-2 text-xs text-[#542D24] cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={value.useCustomCoords}
-          onChange={(e) => onChange({ ...value, useCustomCoords: e.target.checked })}
-          className="rounded border-[#D8AD59] text-[#351016] focus:ring-[#D8AD59]"
-        />
-        <span>{ui.customCoordsToggle}</span>
-      </label>
-
-      {value.useCustomCoords && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-md bg-[#EFE3CE]/60 border border-[#D8AD59]/40">
-          <div>
-            <label htmlFor={`${idPrefix}-lat`} className="block text-[11px] font-semibold text-[#351016] mb-1">
-              {ui.latLabel}
-            </label>
-            <input
-              id={`${idPrefix}-lat`}
-              type="number"
-              step="0.0001"
-              min="-66"
-              max="66"
-              value={value.customLat}
-              onChange={(e) => onChange({ ...value, customLat: e.target.value })}
-              className="w-full h-9 px-2.5 rounded bg-white border border-[#D8AD59]/50 text-xs text-[#351016]"
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idPrefix}-lon`} className="block text-[11px] font-semibold text-[#351016] mb-1">
-              {ui.lonLabel}
-            </label>
-            <input
-              id={`${idPrefix}-lon`}
-              type="number"
-              step="0.0001"
-              min="-180"
-              max="180"
-              value={value.customLon}
-              onChange={(e) => onChange({ ...value, customLon: e.target.value })}
-              className="w-full h-9 px-2.5 rounded bg-white border border-[#D8AD59]/50 text-xs text-[#351016]"
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idPrefix}-utc`} className="block text-[11px] font-semibold text-[#351016] mb-1">
-              {ui.utcOffsetLabel}
-            </label>
-            <input
-              id={`${idPrefix}-utc`}
-              type="number"
-              step="0.25"
-              min="-12"
-              max="14"
-              value={value.customUtcHours}
-              onChange={(e) => onChange({ ...value, customUtcHours: e.target.value })}
-              className="w-full h-9 px-2.5 rounded bg-white border border-[#D8AD59]/50 text-xs text-[#351016]"
-            />
-          </div>
-        </div>
+      {dateError && (
+        <p role="alert" className="text-xs text-[#8E1C28]">
+          {dateError}
+        </p>
       )}
 
-      {error && (
-        <p role="alert" className="text-xs text-[#8E1C28]">
-          {error}
+      {showValidation && !validation.valid && (
+        <p role="alert" className="text-xs font-medium text-[#8E1C28]">
+          {bpUi.coordinatesRequiredTitle}
         </p>
       )}
 
       {onSubmit && (
         <button
           type="submit"
-          className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-all cursor-pointer shadow-sm"
+          className="w-full inline-flex items-center justify-center gap-2 h-11 px-6 rounded-md bg-gradient-to-r from-[#D8AD59] to-[#E99A32] text-[#2B0A10] text-sm font-semibold tracking-wide hover:brightness-105 transition-colors cursor-pointer shadow-sm"
         >
           <Sparkles className="w-4 h-4" aria-hidden="true" />
           <span>{submitLabel ?? ui.calculateBtn}</span>
@@ -295,6 +318,7 @@ export function BirthDetailsForm({
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className={`${compact ? 'p-5' : 'p-6 sm:p-7'} rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40`}
     >
       {fields}
