@@ -278,10 +278,11 @@ export interface NumerologyResult {
   mulank: number; // 1..9
   bhagyank: number; // 1..9
   namankCompound: number;
-  namank: number; // 1..9
+  hasValidName: boolean;
+  namank: number | null; // 1..9 when fullName contains A-Z letters, else null
   mulankPlanet: PlanetId;
   bhagyankPlanet: PlanetId;
-  namankPlanet: PlanetId;
+  namankPlanet: PlanetId | null;
   friendlyNumbers: number[];
   neutralNumbers: number[];
   challengingNumbers: number[];
@@ -923,7 +924,7 @@ export function computeLivePanchang(
 
   const getNakIdx = (ms: number) => {
     const moonL = getSiderealLongitude('moon', new Date(ms));
-    return Math.min(26, Math.floor(moonL / (360 / 27)));
+    return Math.min(26, Math.floor((moonL * 27) / 360 + 1e-12));
   };
 
   const sunSid = getSiderealLongitude('sun', refDate);
@@ -937,7 +938,7 @@ export function computeLivePanchang(
 
   const { nakshatraIndex, pada: nakshatraPada } = getNakshatraAndPada(moonSid);
   const nakshatraLord = VIMSHOTTARI_ORDER[nakshatraIndex % 9].lord;
-  const yogaIndex = Math.min(26, Math.floor(norm360(sunSid + moonSid) / (360 / 27)));
+  const yogaIndex = Math.min(26, Math.floor((norm360(sunSid + moonSid) * 27) / 360 + 1e-12));
   const halfTithi = Math.min(59, Math.floor(elongation / 6));
   const karanaId = getKaranaFromHalfTithi(halfTithi);
 
@@ -947,8 +948,14 @@ export function computeLivePanchang(
   const tithiEndTime = findTransitionTime(refDate.getTime(), getTithiIdx);
   const nakshatraEndTime = findTransitionTime(refDate.getTime(), getNakIdx);
 
-  // Vikram Samvat starts around Chaitra Shukla Pratipada (March/April)
-  const vikramSamvat = month1Based >= 4 ? year + 57 : year + 56;
+  // Vikram Samvat starts on Chaitra Shukla Pratipada (first Shukla Pratipada after the final
+  // New Moon in sidereal Meena / Pisces, accounting for Kshaya Pratipada and Adhika Chaitra).
+  const vikramSamvat = computeAstronomicalVikramSamvat(
+    year,
+    month1Based,
+    refDate,
+    nextSunrise ?? new Date(localMidnightUtcMs + 36 * 3600_000),
+  );
 
   let rahuKaal: { start: Date; end: Date } | null = null;
   let yamaganda: { start: Date; end: Date } | null = null;
@@ -1008,7 +1015,9 @@ export function computeLivePanchang(
       const nightEighth = (nextSunrise.getTime() - sunset.getTime()) / 8;
       const nightStartIdx = NIGHT_CHOGHADIYA_START[weekdayIndex];
       for (let i = 0; i < 8; i++) {
-        const type = CHOGHADIYA_CYCLE[(nightStartIdx + i) % 7];
+        // Classical Night Choghadiya advances by +5 (≡ -2 mod 7) along CHOGHADIYA_CYCLE
+        // (planetary weekday-hora order: e.g., Sunday Night = Shubh, Amrit, Char, Rog, Kaal, Labh, Udveg, Shubh).
+        const type = CHOGHADIYA_CYCLE[(nightStartIdx + 5 * i) % 7];
         nightChoghadiya.push({
           type,
           nature: getChoghadiyaNature(type),
@@ -1051,6 +1060,77 @@ export function computeLivePanchang(
     dayChoghadiya,
     nightChoghadiya,
   };
+}
+
+const chaitraNewYearCache = new Map<
+  number,
+  { amavasyaMs: number; pratipadaEndMs: number | null } | null
+>();
+
+/**
+ * Computes the Vikram Samvat year for a given local date from the astronomical Chaitra Shukla
+ * Pratipada boundary (last New Moon in sidereal Meena / Pisces of the Gregorian year, handling
+ * both Adhika Chaitra and Kshaya Pratipada tithis).
+ */
+function computeAstronomicalVikramSamvat(
+  year: number,
+  month1Based: number,
+  refDate: Date,
+  nextRefDate: Date,
+): number {
+  if (month1Based <= 2) return year + 56;
+  if (month1Based >= 5) return year + 57;
+
+  let boundary = chaitraNewYearCache.get(year);
+  if (boundary === undefined) {
+    let lastMeenaAmavasya: Date | null = null;
+    const searchStart = new Date(0);
+    searchStart.setUTCFullYear(year, 1, 20);
+    searchStart.setUTCHours(0, 0, 0, 0);
+
+    let nm = Astronomy.SearchMoonPhase(0, searchStart, 75);
+    while (nm && nm.date.getUTCFullYear() === year && nm.date.getUTCMonth() <= 4) {
+      const sunSign = Math.floor(getSiderealLongitude('sun', nm.date) / 30);
+      if (sunSign === 11) {
+        lastMeenaAmavasya = nm.date;
+      }
+      nm = Astronomy.SearchMoonPhase(0, new Date(nm.date.getTime() + 20 * 86_400_000), 40);
+    }
+
+    if (lastMeenaAmavasya) {
+      const pratipadaEnd = Astronomy.SearchMoonPhase(12, lastMeenaAmavasya, 3);
+      boundary = {
+        amavasyaMs: lastMeenaAmavasya.getTime(),
+        pratipadaEndMs: pratipadaEnd ? pratipadaEnd.date.getTime() : null,
+      };
+    } else {
+      boundary = null;
+    }
+
+    if (chaitraNewYearCache.size > 64) {
+      chaitraNewYearCache.clear();
+    }
+    chaitraNewYearCache.set(year, boundary);
+  }
+
+  if (!boundary) {
+    return month1Based >= 4 ? year + 57 : year + 56;
+  }
+
+  const refMs = refDate.getTime();
+  if (refMs >= boundary.amavasyaMs) {
+    return year + 57;
+  }
+  // Kshaya Pratipada: Shukla Pratipada starts after today's sunrise and ends before tomorrow's sunrise
+  const nextRefMs = nextRefDate.getTime();
+  if (
+    boundary.amavasyaMs < nextRefMs &&
+    boundary.pratipadaEndMs !== null &&
+    boundary.pratipadaEndMs < nextRefMs
+  ) {
+    return year + 57;
+  }
+  return year + 56;
 }
 
 // ============================================================================
@@ -1206,7 +1286,10 @@ function getTaraScore(nakA: number, nakB: number): number {
 
 function getGanaScore(ganaA: 'deva' | 'manushya' | 'rakshasa', ganaB: 'deva' | 'manushya' | 'rakshasa'): number {
   if (ganaA === ganaB) return 6;
-  if ((ganaA === 'deva' && ganaB === 'manushya') || (ganaA === 'manushya' && ganaB === 'deva')) return 6;
+  // Classical Muhurta Chintamani Gana Koota (Partner A = Groom, Partner B = Bride):
+  // Deva(A) + Manushya(B) = 6; Manushya(A) + Deva(B) = 5; Rakshasa(A) + Deva(B) = 1; else 0.
+  if (ganaA === 'deva' && ganaB === 'manushya') return 6;
+  if (ganaA === 'manushya' && ganaB === 'deva') return 5;
   if (ganaA === 'rakshasa' && ganaB === 'deva') return 1;
   if (ganaA === 'deva' && ganaB === 'rakshasa') return 0;
   return 0; // Manushya + Rakshasa
@@ -1222,10 +1305,10 @@ export function computeAshtakoota(inputA: BirthInput, inputB: BirthInput): Ashta
   const moonA = personA.planets.find((p) => p.id === 'moon')!;
   const moonB = personB.planets.find((p) => p.id === 'moon')!;
 
-  // 1. Varna (max 1)
+  // 1. Varna (max 1): Classical rule awards 1 point when Partner A (Groom) Varna >= Partner B (Bride) Varna.
   const varnaA = getRashiVarnaRank(moonA.rashiIndex);
   const varnaB = getRashiVarnaRank(moonB.rashiIndex);
-  const varnaScore = varnaA === varnaB ? 1 : Math.abs(varnaA - varnaB) === 1 ? 1 : 0;
+  const varnaScore = varnaA >= varnaB ? 1 : 0;
 
   // 2. Vashya (max 2)
   const vashyaA = getVashyaGroup(moonA.rashiIndex, moonA.degreeInSign);
@@ -1279,8 +1362,9 @@ export function computeAshtakoota(inputA: BirthInput, inputB: BirthInput): Ashta
 
   const mangalA = evaluateMangalDoshaFromKundli(personA);
   const mangalB = evaluateMangalDoshaFromKundli(personB);
-  const activeA = mangalA.severity === 'present';
-  const activeB = mangalB.severity === 'present';
+  // Treat any uncancelled active Mangal Dosha (full 'present' or single-reference 'partial') as active
+  const activeA = mangalA.severity === 'present' || mangalA.severity === 'partial';
+  const activeB = mangalB.severity === 'present' || mangalB.severity === 'partial';
   const mangalCompatible = activeA === activeB;
 
   return {
@@ -1334,14 +1418,22 @@ export function evaluateMangalDoshaFromKundli(kundli: KundliResult): MangalDosha
     if ([1, 5, 7, 9].includes(marsFromJupiter)) {
       cancellations.push('jupiter_conjunction_or_aspect');
     }
-    // Classical sign-house exceptions (e.g., Mars in 2nd in Gemini/Virgo, 4th in Aries/Scorpio, 7th in Capricorn/Cancer, 8th in Sagittarius/Pisces, 12th in Taurus/Libra)
-    const exceptionMatch =
-      (fromLagnaHouse === 2 && (mars.rashiIndex === 2 || mars.rashiIndex === 5)) ||
-      (fromLagnaHouse === 4 && (mars.rashiIndex === 0 || mars.rashiIndex === 7)) ||
-      (fromLagnaHouse === 7 && (mars.rashiIndex === 9 || mars.rashiIndex === 3)) ||
-      (fromLagnaHouse === 8 && (mars.rashiIndex === 8 || mars.rashiIndex === 11)) ||
-      (fromLagnaHouse === 12 && (mars.rashiIndex === 1 || mars.rashiIndex === 6));
-    if (exceptionMatch) {
+    // Classical sign-house exceptions evaluated against every active reference frame (Lagna/Moon/Venus):
+    // 2nd in Gemini/Virgo, 4th in Aries/Scorpio, 7th in Capricorn/Cancer, 8th in Sagittarius/Pisces, 12th in Taurus/Libra.
+    const isHouseSignExempt = (house: number, rashi: number): boolean =>
+      (house === 2 && (rashi === 2 || rashi === 5)) ||
+      (house === 4 && (rashi === 0 || rashi === 7)) ||
+      (house === 7 && (rashi === 9 || rashi === 3)) ||
+      (house === 8 && (rashi === 8 || rashi === 11)) ||
+      (house === 12 && (rashi === 1 || rashi === 6));
+    const activeDoshaHouses: number[] = [];
+    if (fromLagnaDosha) activeDoshaHouses.push(fromLagnaHouse);
+    if (fromMoonDosha) activeDoshaHouses.push(fromMoonHouse);
+    if (fromVenusDosha) activeDoshaHouses.push(fromVenusHouse);
+    if (
+      activeDoshaHouses.length > 0 &&
+      activeDoshaHouses.every((house) => isHouseSignExempt(house, mars.rashiIndex))
+    ) {
       cancellations.push('classical_sign_exception');
     }
   }
@@ -1523,14 +1615,6 @@ export function computeSadeSati(input: BirthInput, referenceDate: Date = new Dat
   else if (houseFromMoon === 4) status = 'dhaiya_4';
   else if (houseFromMoon === 8) status = 'dhaiya_8';
 
-  // Classical Paya based on Moon's position from Saturn's current sign
-  const moonFromSaturn = ((natalMoon - currentSaturnRashiIndex + 12) % 12) + 1;
-  let paya: SadeSatiResult['paya'] = 'silver';
-  if ([1, 6, 11].includes(moonFromSaturn)) paya = 'gold';
-  else if ([2, 5, 9].includes(moonFromSaturn)) paya = 'silver';
-  else if ([3, 7, 10].includes(moonFromSaturn)) paya = 'copper';
-  else paya = 'iron';
-
   // Compute exact Saturn sign crossings over [refYear - 14, refYear + 36] so every active
   // or upcoming Sade Sati cycle (7.5 yrs) and Shani Dhaiya passage (2.5 yrs) is fully bounded.
   const refYear = referenceDate.getUTCFullYear();
@@ -1538,6 +1622,21 @@ export function computeSadeSati(input: BirthInput, referenceDate: Date = new Dat
   const scanEnd = new Date(Date.UTC(refYear + 36, 0, 1, 0, 0, 0));
   const allSaturnTransits = computeSaturnTransits(scanStart, scanEnd);
   const refMs = referenceDate.getTime();
+
+  // Classical Shani Paya (Murti Nirnaya): determined by Transit Moon's house from Natal Moon
+  // at the exact timestamp of Saturn's ingress into its current sidereal sign:
+  // 1, 6, 11 = Swarna (Gold); 2, 5, 9 = Rajata (Silver); 3, 7, 10 = Tamra (Copper); 4, 8, 12 = Loha (Iron).
+  const activeSaturnInterval = allSaturnTransits.find(
+    (iv) => refMs >= iv.startDate.getTime() && refMs < iv.endDate.getTime(),
+  );
+  const payaRefDate = activeSaturnInterval ? activeSaturnInterval.startDate : referenceDate;
+  const transitMoonAtIngress = Math.floor(getSiderealLongitude('moon', payaRefDate) / 30);
+  const payaHouse = ((transitMoonAtIngress - natalMoon + 12) % 12) + 1;
+  let paya: SadeSatiResult['paya'] = 'silver';
+  if ([1, 6, 11].includes(payaHouse)) paya = 'gold';
+  else if ([2, 5, 9].includes(payaHouse)) paya = 'silver';
+  else if ([3, 7, 10].includes(payaHouse)) paya = 'copper';
+  else paya = 'iron';
 
   // 1) Sade Sati (12th = Rising, 1st = Peak, 2nd = Setting from natal Moon)
   const risingSign = (natalMoon + 11) % 12;
@@ -1696,12 +1795,22 @@ export function reduceToSingleDigit(n: number): number {
 }
 
 export function computeNumerology(fullName: string, birthDateStr: string): NumerologyResult {
-  const digits = birthDateStr.replace(/\D/g, '');
-  const parts = birthDateStr.split('-');
-  const dayNum = Number(parts[2]) || 1;
+  const parts = (birthDateStr || '2000-01-01').split('-');
+  const rawYear = Number(parts[0]);
+  const rawMonth = Number(parts[1]);
+  const rawDay = Number(parts[2]);
+  const year = Number.isFinite(rawYear) && rawYear >= 1 ? Math.trunc(rawYear) : 2000;
+  const month = Number.isFinite(rawMonth) ? Math.max(1, Math.min(12, Math.trunc(rawMonth))) : 1;
+  const maxDay = daysInGregorianMonth(year, month);
+  const dayNum = Number.isFinite(rawDay) ? Math.max(1, Math.min(maxDay, Math.trunc(rawDay))) : 1;
+
+  const normalizedDateStr = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
   const mulank = reduceToSingleDigit(dayNum);
 
-  const dateDigitSum = digits.split('').reduce((acc, d) => acc + Number(d), 0);
+  const dateDigitSum = normalizedDateStr
+    .replace(/\D/g, '')
+    .split('')
+    .reduce((acc, d) => acc + Number(d), 0);
   const bhagyank = reduceToSingleDigit(dateDigitSum || dayNum);
 
   const upper = fullName.toUpperCase().replace(/[^A-Z]/g, '');
@@ -1709,19 +1818,21 @@ export function computeNumerology(fullName: string, birthDateStr: string): Numer
   for (const ch of upper) {
     namankCompound += CHALDEAN_MAP[ch] ?? 0;
   }
-  const namank = namankCompound > 0 ? reduceToSingleDigit(namankCompound) : mulank;
+  const hasValidName = namankCompound > 0;
+  const namank = hasValidName ? reduceToSingleDigit(namankCompound) : null;
   const compat = NUMBER_COMPATIBILITY[mulank] ?? NUMBER_COMPATIBILITY[1];
 
   return {
     fullName: fullName.trim(),
-    birthDateStr,
+    birthDateStr: normalizedDateStr,
     mulank,
     bhagyank,
     namankCompound,
+    hasValidName,
     namank,
     mulankPlanet: NUMBER_PLANET[mulank],
     bhagyankPlanet: NUMBER_PLANET[bhagyank],
-    namankPlanet: NUMBER_PLANET[namank],
+    namankPlanet: namank !== null ? NUMBER_PLANET[namank] : null,
     friendlyNumbers: compat.friendly,
     neutralNumbers: compat.neutral,
     challengingNumbers: compat.challenging,

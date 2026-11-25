@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Flame, ShieldCheck, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { computeKundli, evaluateMangalDoshaFromKundli, formatDegMin } from '../utils/vedicAstrology';
+import { computeKundli, evaluateMangalDoshaFromKundli, formatDMS } from '../utils/vedicAstrology';
 import { localizeDigits } from '../utils/panchang';
 import { CALC_UI, RASHI_NAMES } from '../i18n/vedicLabels';
 import {
@@ -168,7 +168,7 @@ export function MangalDoshaPage() {
                     }`}
                   >
                     {copy.marsPlacement}: {RASHI_NAMES[language][result.marsRashiIndex]} (
-                    {localizeDigits(formatDegMin(result.marsDegree), language)})
+                    {localizeDigits(formatDMS(result.marsDegree), language)})
                   </p>
                   <h2 className="mt-1 font-display text-2xl font-semibold">
                     {ui.mangalSeverityTitles[result.severity]}

@@ -12,12 +12,14 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import {
   PANCHANG_CITIES,
+  getCityUtcOffsetMinutesForDate,
   getPanchangCityById,
   loadSavedPanchangCity,
   savePanchangCity,
   formatPanchangDate,
   formatLocalTime,
   formatTimeRange,
+  formatUtcOffsetLabel,
   localizeDigits,
   type PanchangCityId,
 } from '../utils/panchang';
@@ -139,6 +141,16 @@ export function PanchangPage() {
     [year, month, day, language],
   );
 
+  const effectiveOffsetMinutes = useMemo(
+    () => getCityUtcOffsetMinutesForDate(selectedCity, dateStr, '12:00'),
+    [selectedCity, dateStr],
+  );
+
+  const activeTimezoneLabel =
+    effectiveOffsetMinutes === selectedCity.utcOffsetMinutes
+      ? selectedCity.timezone
+      : `${selectedCity.ianaTimeZone} (${formatUtcOffsetLabel(effectiveOffsetMinutes)})`;
+
   const live = useMemo(
     () =>
       computeLivePanchang(
@@ -147,9 +159,9 @@ export function PanchangPage() {
         day,
         selectedCity.lat,
         selectedCity.lon,
-        selectedCity.utcOffsetMinutes,
+        effectiveOffsetMinutes,
       ),
-    [year, month, day, selectedCity],
+    [year, month, day, selectedCity, effectiveOffsetMinutes],
   );
 
   const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -177,7 +189,7 @@ export function PanchangPage() {
       label: f.tithi.label,
       value: tithiName,
       sub: live.tithiEndTime
-        ? `${ui.endsAtLabel}: ${formatLocalTime(live.tithiEndTime, selectedCity.utcOffsetMinutes, language)}`
+        ? `${ui.endsAtLabel}: ${formatLocalTime(live.tithiEndTime, effectiveOffsetMinutes, language)}`
         : `${lbl.moonRashi}: ${RASHI_NAMES[language][live.moonRashiIndex]}`,
       isTime: false,
       isCaution: false,
@@ -188,7 +200,7 @@ export function PanchangPage() {
       value: nakshatraName,
       sub: `${lbl.pada} ${localizeDigits(live.nakshatraPada, language)}${
         live.nakshatraEndTime
-          ? ` · ${ui.endsAtLabel}: ${formatLocalTime(live.nakshatraEndTime, selectedCity.utcOffsetMinutes, language)}`
+          ? ` · ${ui.endsAtLabel}: ${formatLocalTime(live.nakshatraEndTime, effectiveOffsetMinutes, language)}`
           : ''
       }`,
       isTime: false,
@@ -214,9 +226,9 @@ export function PanchangPage() {
       key: 'sunrise',
       label: f.sunrise.label,
       value: live.sunrise
-        ? formatLocalTime(live.sunrise, selectedCity.utcOffsetMinutes, language)
+        ? formatLocalTime(live.sunrise, effectiveOffsetMinutes, language)
         : '—',
-      sub: `${selectedCity.names[language]} · ${selectedCity.timezone}`,
+      sub: `${selectedCity.names[language]} · ${activeTimezoneLabel}`,
       isTime: true,
       isCaution: false,
     },
@@ -224,7 +236,7 @@ export function PanchangPage() {
       key: 'sunset',
       label: f.sunset.label,
       value: live.sunset
-        ? formatLocalTime(live.sunset, selectedCity.utcOffsetMinutes, language)
+        ? formatLocalTime(live.sunset, effectiveOffsetMinutes, language)
         : '—',
       sub: `${ui.ayanamshaLabel}: ${localizeDigits(formatDegMin(live.ayanamsha), language)}`,
       isTime: true,
@@ -234,7 +246,7 @@ export function PanchangPage() {
       key: 'rahuKaal',
       label: f.rahuKaal.label,
       value: live.rahuKaal
-        ? formatTimeRange(live.rahuKaal.start, live.rahuKaal.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.rahuKaal.start, live.rahuKaal.end, effectiveOffsetMinutes, language)
         : '—',
       sub: t.panchang.cautionLabel,
       isTime: true,
@@ -246,7 +258,7 @@ export function PanchangPage() {
     {
       name: lbl.brahma,
       time: live.brahmaMuhurat
-        ? formatTimeRange(live.brahmaMuhurat.start, live.brahmaMuhurat.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.brahmaMuhurat.start, live.brahmaMuhurat.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'auspicious' as const,
       note: lbl.brahmaNote,
@@ -254,7 +266,7 @@ export function PanchangPage() {
     {
       name: lbl.abhijit,
       time: live.abhijitMuhurat
-        ? formatTimeRange(live.abhijitMuhurat.start, live.abhijitMuhurat.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.abhijitMuhurat.start, live.abhijitMuhurat.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'auspicious' as const,
       note: lbl.abhijitNote,
@@ -262,7 +274,7 @@ export function PanchangPage() {
     {
       name: lbl.vijaya,
       time: live.vijayaMuhurat
-        ? formatTimeRange(live.vijayaMuhurat.start, live.vijayaMuhurat.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.vijayaMuhurat.start, live.vijayaMuhurat.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'auspicious' as const,
       note: lbl.vijayaNote,
@@ -270,7 +282,7 @@ export function PanchangPage() {
     {
       name: lbl.godhuli,
       time: live.godhuliMuhurat
-        ? formatTimeRange(live.godhuliMuhurat.start, live.godhuliMuhurat.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.godhuliMuhurat.start, live.godhuliMuhurat.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'auspicious' as const,
       note: lbl.godhuliNote,
@@ -278,7 +290,7 @@ export function PanchangPage() {
     {
       name: lbl.yamaganda,
       time: live.yamaganda
-        ? formatTimeRange(live.yamaganda.start, live.yamaganda.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.yamaganda.start, live.yamaganda.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'caution' as const,
       note: lbl.yamagandaNote,
@@ -286,7 +298,7 @@ export function PanchangPage() {
     {
       name: lbl.gulika,
       time: live.gulikaKaal
-        ? formatTimeRange(live.gulikaKaal.start, live.gulikaKaal.end, selectedCity.utcOffsetMinutes, language)
+        ? formatTimeRange(live.gulikaKaal.start, live.gulikaKaal.end, effectiveOffsetMinutes, language)
         : '—',
       nature: 'caution' as const,
       note: lbl.gulikaNote,
@@ -366,7 +378,7 @@ export function PanchangPage() {
             <span>
               {t.panchang.coordinatesLabel}:{' '}
               <strong className="font-mono tabular-nums font-semibold text-[#F8F0E3]">
-                {selectedCity.coordinates} · {selectedCity.timezone}
+                {selectedCity.coordinates} · {activeTimezoneLabel}
               </strong>
             </span>
             <span>

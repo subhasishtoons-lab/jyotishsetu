@@ -20,6 +20,8 @@ import {
   formatPanchangDate,
   formatLocalTime,
   formatTimeRange,
+  formatUtcOffsetLabel,
+  getCityUtcOffsetMinutesForDate,
   getPanchangCityById,
   loadSavedPanchangCity,
   localizeDigits,
@@ -68,6 +70,23 @@ export function HomePage() {
     return getPanchangCityById(savedId);
   }, []);
 
+  const todayIso = useMemo(() => {
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [today]);
+
+  const effectiveOffsetMinutes = useMemo(
+    () => getCityUtcOffsetMinutesForDate(selectedCity, todayIso, '12:00'),
+    [selectedCity, todayIso],
+  );
+
+  const activeTimezoneLabel =
+    effectiveOffsetMinutes === selectedCity.utcOffsetMinutes
+      ? selectedCity.timezone
+      : `${selectedCity.ianaTimeZone} (${formatUtcOffsetLabel(effectiveOffsetMinutes)})`;
+
   const livePanchang = useMemo(
     () =>
       computeLivePanchang(
@@ -76,9 +95,9 @@ export function HomePage() {
         today.getDate(),
         selectedCity.lat,
         selectedCity.lon,
-        selectedCity.utcOffsetMinutes,
+        effectiveOffsetMinutes,
       ),
-    [today, selectedCity],
+    [today, selectedCity, effectiveOffsetMinutes],
   );
 
   const pFields = t.panchang.data.fields;
@@ -96,7 +115,7 @@ export function HomePage() {
       label: pFields.tithi.label,
       value: getLocalizedTithiName(livePanchang.paksha, livePanchang.tithiInPaksha, language),
       sub: livePanchang.tithiEndTime
-        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.tithiEndTime, selectedCity.utcOffsetMinutes, language)}`
+        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.tithiEndTime, effectiveOffsetMinutes, language)}`
         : RASHI_NAMES[language][livePanchang.moonRashiIndex],
       isTime: false,
       isCaution: false,
@@ -106,7 +125,7 @@ export function HomePage() {
       label: pFields.nakshatra.label,
       value: NAKSHATRA_NAMES[language][livePanchang.nakshatraIndex],
       sub: livePanchang.nakshatraEndTime
-        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.nakshatraEndTime, selectedCity.utcOffsetMinutes, language)}`
+        ? `${ui.endsAtLabel}: ${formatLocalTime(livePanchang.nakshatraEndTime, effectiveOffsetMinutes, language)}`
         : RASHI_NAMES[language][livePanchang.moonRashiIndex],
       isTime: false,
       isCaution: false,
@@ -131,9 +150,9 @@ export function HomePage() {
       key: 'sunrise',
       label: pFields.sunrise.label,
       value: livePanchang.sunrise
-        ? formatLocalTime(livePanchang.sunrise, selectedCity.utcOffsetMinutes, language)
+        ? formatLocalTime(livePanchang.sunrise, effectiveOffsetMinutes, language)
         : '—',
-      sub: `${selectedCity.names[language]} · ${selectedCity.timezone}`,
+      sub: `${selectedCity.names[language]} · ${activeTimezoneLabel}`,
       isTime: true,
       isCaution: false,
     },
@@ -141,7 +160,7 @@ export function HomePage() {
       key: 'sunset',
       label: pFields.sunset.label,
       value: livePanchang.sunset
-        ? formatLocalTime(livePanchang.sunset, selectedCity.utcOffsetMinutes, language)
+        ? formatLocalTime(livePanchang.sunset, effectiveOffsetMinutes, language)
         : '—',
       sub: `${ui.ayanamshaLabel}: ${localizeDigits(formatDegMin(livePanchang.ayanamsha), language)}`,
       isTime: true,
@@ -154,7 +173,7 @@ export function HomePage() {
         ? formatTimeRange(
             livePanchang.rahuKaal.start,
             livePanchang.rahuKaal.end,
-            selectedCity.utcOffsetMinutes,
+            effectiveOffsetMinutes,
             language,
           )
         : '—',

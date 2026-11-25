@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Orbit, ShieldCheck, AlertTriangle, Calendar, ArrowRight, RotateCcw } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { computeSadeSati, formatDegMin } from '../utils/vedicAstrology';
+import { computeSadeSati, formatDMS } from '../utils/vedicAstrology';
 import {
   formatDateInTimeZone,
   formatUtcOffsetLabel,
@@ -232,7 +232,7 @@ export function SadeSatiPage() {
                   {RASHI_NAMES[language][result.currentSaturnRashiIndex]}
                 </p>
                 <p className="mt-1 text-xs font-mono tabular-nums text-[#542D24]">
-                  {localizeDigits(formatDegMin(result.currentSaturnDegree), language)} ·{' '}
+                  {localizeDigits(formatDMS(result.currentSaturnDegree), language)} ·{' '}
                   {copy.houseFromMoonLabel}: {localizeDigits(result.houseFromMoon, language)}
                 </p>
               </div>

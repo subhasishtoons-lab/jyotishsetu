@@ -184,7 +184,7 @@ export function KundliChartSvg({
           fill="#EBD08D"
           opacity="0.85"
         >
-          {shortMap.lagna}: {localizeDigits(lagnaRashiIndex + 1, language)}
+          {chartType === 'chandra' ? shortMap.moon : shortMap.lagna}: {localizeDigits(lagnaRashiIndex + 1, language)}
         </text>
       </svg>
     );

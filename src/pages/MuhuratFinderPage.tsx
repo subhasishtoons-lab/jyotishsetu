@@ -6,6 +6,7 @@ import {
   formatLocalTime,
   formatPanchangDate,
   formatTimeRange,
+  getCityUtcOffsetMinutesForDate,
   getPanchangCityById,
   loadSavedPanchangCity,
   localizeDigits,
@@ -50,6 +51,11 @@ export function MuhuratFinderPage() {
     };
   }, [dateStr]);
 
+  const effectiveOffsetMinutes = useMemo(
+    () => getCityUtcOffsetMinutesForDate(city, dateStr, '12:00'),
+    [city, dateStr],
+  );
+
   const panchang = useMemo(
     () =>
       computeLivePanchang(
@@ -58,9 +64,9 @@ export function MuhuratFinderPage() {
         parsedParts.day,
         city.lat,
         city.lon,
-        city.utcOffsetMinutes,
+        effectiveOffsetMinutes,
       ),
-    [parsedParts, city],
+    [parsedParts, city, effectiveOffsetMinutes],
   );
 
   const formattedDate = useMemo(
@@ -244,13 +250,13 @@ export function MuhuratFinderPage() {
             <span>
               {copy.sunrise}:{' '}
               <strong className="text-[#F8F0E3]">
-                {formatLocalTime(panchang.sunrise, city.utcOffsetMinutes, language)}
+                {formatLocalTime(panchang.sunrise, effectiveOffsetMinutes, language)}
               </strong>
             </span>
             <span>
               {copy.sunset}:{' '}
               <strong className="text-[#F8F0E3]">
-                {formatLocalTime(panchang.sunset, city.utcOffsetMinutes, language)}
+                {formatLocalTime(panchang.sunset, effectiveOffsetMinutes, language)}
               </strong>
             </span>
           </div>
@@ -280,7 +286,7 @@ export function MuhuratFinderPage() {
                     {w.name}
                   </h3>
                   <p className="mt-1.5 font-mono tabular-nums text-sm font-semibold text-[#542D24]">
-                    {formatTimeRange(w.slot?.start ?? null, w.slot?.end ?? null, city.utcOffsetMinutes, language)}
+                    {formatTimeRange(w.slot?.start ?? null, w.slot?.end ?? null, effectiveOffsetMinutes, language)}
                   </p>
                   <p className="mt-1.5 text-xs text-[#542D24]/85 leading-relaxed">{w.note}</p>
                 </div>
@@ -307,7 +313,7 @@ export function MuhuratFinderPage() {
                     <h3 className="font-display text-base font-semibold text-[#F8F0E3]">{w.name}</h3>
                   </div>
                   <p className="font-mono tabular-nums text-xs sm:text-sm font-medium text-[#EBD08D]">
-                    {formatTimeRange(w.slot?.start ?? null, w.slot?.end ?? null, city.utcOffsetMinutes, language)}
+                    {formatTimeRange(w.slot?.start ?? null, w.slot?.end ?? null, effectiveOffsetMinutes, language)}
                   </p>
                 </div>
               ))}
@@ -366,7 +372,7 @@ export function MuhuratFinderPage() {
                         </div>
                         <span className="font-mono tabular-nums text-xs font-medium text-[#351016] flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-[#C47616]" aria-hidden="true" />
-                          {formatTimeRange(slot.start, slot.end, city.utcOffsetMinutes, language)}
+                          {formatTimeRange(slot.start, slot.end, effectiveOffsetMinutes, language)}
                         </span>
                       </div>
                     );

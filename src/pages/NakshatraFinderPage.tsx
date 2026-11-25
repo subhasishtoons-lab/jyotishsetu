@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import { computeNakshatraDetails, formatDegMin } from '../utils/vedicAstrology';
+import { computeNakshatraDetails, formatDMS } from '../utils/vedicAstrology';
 import { localizeDigits } from '../utils/panchang';
 import {
   CALC_UI,
@@ -167,7 +167,7 @@ export function NakshatraFinderPage() {
                 </h2>
                 <p className="mt-2 text-xs sm:text-sm text-[#F8F0E3]/80 font-mono tabular-nums">
                   {copy.moonPosLabel}:{' '}
-                  {localizeDigits(formatDegMin(result.moonDegreeInSign), language)} (
+                  {localizeDigits(formatDMS(result.moonDegreeInSign), language)} (
                   {RASHI_NAMES[language][result.moonRashiIndex]})
                 </p>
               </div>

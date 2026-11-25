@@ -70,6 +70,7 @@ import {
   CHOGHADIYA_LABELS,
   CALC_UI,
   NUMEROLOGY_PROFILES,
+  NAKSHATRA_PADA_SYLLABLES,
 } from '../i18n/vedicLabels';
 
 function createMemoryStorage(): StorageLike {
@@ -399,7 +400,7 @@ test('Ashtakoota 36-Guna Matching, Mangal Dosha, Sade Sati, Nakshatra, Numerolog
   const num = computeNumerology('Aarav Sharma', '1996-05-15');
   assert.equal(num.mulank, 6); // 1+5 = 6
   assert.equal(num.bhagyank, 9); // 1+9+9+6+0+5+1+5 = 36 -> 9
-  assert.ok(num.namank >= 1 && num.namank <= 9);
+  assert.ok(num.namank !== null && num.namank >= 1 && num.namank <= 9);
 
   const transits = computeCurrentTransits('mesha', new Date(Date.UTC(2026, 10, 24, 6, 0, 0)));
   assert.equal(transits.planets.length, 9);
@@ -989,3 +990,178 @@ test('Sade Sati Audit 3: Shani Dhaiya periods & birthplace timezone date formatt
   assert.equal(formatDateInTimeZone(capricornIngress, 'en', 'Asia/Kolkata', 330), '24 January 2020');
   assert.equal(formatDateInTimeZone(capricornIngress, 'en', 'America/New_York', -300), '23 January 2020');
 });
+
+test('Full Audit 1: Night Choghadiya 7-day classical sequence matches Drik Panchang (+5 mod 7)', () => {
+  const varanasi = getPanchangCityById('varanasi');
+  // 2026-11-22 (Sun) .. 2026-11-28 (Sat)
+  const expectedNightByWeekday: Record<number, string[]> = {
+    0: ['shubh', 'amrit', 'char', 'rog', 'kaal', 'labh', 'udveg', 'shubh'],
+    1: ['char', 'rog', 'kaal', 'labh', 'udveg', 'shubh', 'amrit', 'char'],
+    2: ['kaal', 'labh', 'udveg', 'shubh', 'amrit', 'char', 'rog', 'kaal'],
+    3: ['udveg', 'shubh', 'amrit', 'char', 'rog', 'kaal', 'labh', 'udveg'],
+    4: ['amrit', 'char', 'rog', 'kaal', 'labh', 'udveg', 'shubh', 'amrit'],
+    5: ['rog', 'kaal', 'labh', 'udveg', 'shubh', 'amrit', 'char', 'rog'],
+    6: ['labh', 'udveg', 'shubh', 'amrit', 'char', 'rog', 'kaal', 'labh'],
+  };
+
+  for (let offset = 0; offset < 7; offset++) {
+    const p = computeLivePanchang(2026, 11, 22 + offset, varanasi.lat, varanasi.lon, 330);
+    assert.equal(p.weekdayIndex, offset);
+    assert.deepEqual(
+      p.nightChoghadiya.map((s) => s.type),
+      expectedNightByWeekday[offset],
+      `Night Choghadiya mismatch for weekday ${offset}`,
+    );
+  }
+});
+
+test('Full Audit 2: DST-aware Panchang & Muhurat sunrise/sunset times for London BST and New York EDT', () => {
+  const london = getPanchangCityById('london');
+  const newYork = getPanchangCityById('new-york');
+
+  // 15 July 2026: London is on BST (+60), New York is on EDT (-240)
+  const lonOffset = getCityUtcOffsetMinutesForDate(london, '2026-07-15', '12:00');
+  const nyOffset = getCityUtcOffsetMinutesForDate(newYork, '2026-07-15', '12:00');
+  assert.equal(lonOffset, 60);
+  assert.equal(nyOffset, -240);
+
+  const pLondon = computeLivePanchang(2026, 7, 15, london.lat, london.lon, lonOffset);
+  const pNewYork = computeLivePanchang(2026, 7, 15, newYork.lat, newYork.lon, nyOffset);
+  assert.ok(pLondon.sunrise && pLondon.sunset);
+  assert.ok(pNewYork.sunrise && pNewYork.sunset);
+
+  // London sunrise on 15 Jul 2026 is ~05:00 AM BST (not 04:00 AM GMT); New York is ~05:37 AM EDT (not 04:37 AM EST)
+  assert.ok(formatLocalTime(pLondon.sunrise, lonOffset, 'en').startsWith('05:0'));
+  assert.ok(formatLocalTime(pNewYork.sunrise, nyOffset, 'en').startsWith('05:3'));
+});
+
+test('Full Audit 3: Astronomical Vikram Samvat transitions across 2020-2030 (including 2026 Kshaya Pratipada & 2029 Adhika Chaitra)', () => {
+  const delhi = getPanchangCityById('new-delhi');
+  const expectedNewYear: Record<number, [number, number]> = {
+    2020: [3, 25],
+    2021: [4, 13],
+    2022: [4, 2],
+    2023: [3, 22],
+    2024: [4, 9],
+    2025: [3, 30],
+    2026: [3, 19],
+    2027: [4, 7],
+    2028: [3, 27],
+    2029: [4, 14],
+    2030: [4, 3],
+  };
+
+  for (const [yStr, [m, d]] of Object.entries(expectedNewYear)) {
+    const y = Number(yStr);
+    const prev = new Date(Date.UTC(y, m - 1, d - 1));
+    const pBefore = computeLivePanchang(
+      prev.getUTCFullYear(),
+      prev.getUTCMonth() + 1,
+      prev.getUTCDate(),
+      delhi.lat,
+      delhi.lon,
+      330,
+    );
+    const pOnDay = computeLivePanchang(y, m, d, delhi.lat, delhi.lon, 330);
+    assert.equal(pBefore.vikramSamvat, y + 56, `Day before Chaitra Pratipada ${y}`);
+    assert.equal(pOnDay.vikramSamvat, y + 57, `Chaitra Pratipada ${y}-${m}-${d}`);
+  }
+});
+
+test('Full Audit 4: Ashtakoota Varna, Gana, and uncancelled partial Mangal Dosha compatibility', () => {
+  const mk = (dateStr: string, timeStr: string) => ({
+    name: '',
+    dateStr,
+    timeStr,
+    lat: 28.6139,
+    lon: 77.209,
+    utcOffsetMinutes: 330,
+  });
+
+  // Find clean charts by sign/gana:
+  // 1994-08-06 10:15 IST -> Moon in Karka (Brahmin=3, Pushya=Deva)
+  // 1994-08-02 10:15 IST -> Moon in Vrishabha (Vaishya=1, Rohini=Manushya)
+  // 1994-08-04 10:15 IST -> Moon in Mithuna (Shudra=0, Ardra=Manushya)
+  const karkaDeva = mk('1994-08-06', '10:15');
+  const vrishabhaManushya = mk('1994-08-02', '10:15');
+  const mithunaManushya = mk('1994-08-04', '10:15');
+
+  const kKarka = computeKundli(karkaDeva);
+  const kVrishabha = computeKundli(vrishabhaManushya);
+  const kMithuna = computeKundli(mithunaManushya);
+  assert.equal(kKarka.moonRashiId, 'karka');
+  assert.equal(kVrishabha.moonRashiId, 'vrishabha');
+  assert.equal(kMithuna.moonRashiId, 'mithuna');
+
+  // Brahmin Groom (3) + Vaishya Bride (1) => Varna = 1; Deva(A) + Manushya(B) => Gana = 6
+  const match1 = computeAshtakoota(karkaDeva, vrishabhaManushya);
+  assert.equal(match1.kootas.find((k) => k.key === 'varna')?.score, 1);
+  assert.equal(match1.kootas.find((k) => k.key === 'gana')?.score, 6);
+
+  // Vaishya Groom (1) + Brahmin Bride (3) => Varna = 0; Manushya(A) + Deva(B) => Gana = 5
+  const match2 = computeAshtakoota(vrishabhaManushya, karkaDeva);
+  assert.equal(match2.kootas.find((k) => k.key === 'varna')?.score, 0);
+  assert.equal(match2.kootas.find((k) => k.key === 'gana')?.score, 5);
+
+  // Shudra Groom (0) + Vaishya Bride (1) => Varna = 0 (old Math.abs===1 bug wrongly gave 1!)
+  const match3 = computeAshtakoota(mithunaManushya, vrishabhaManushya);
+  assert.equal(match3.kootas.find((k) => k.key === 'varna')?.score, 0);
+
+  // Uncancelled partial Mangal Dosha (1994-12-15 00:30: Mars in Simha 12th from Lagna, no Jupiter aspect)
+  // matched with non-Manglik (1994-12-15 06:30: Mars 10th from Lagna) must NOT be marked mangalCompatible
+  const partialInput = mk('1994-12-15', '00:30');
+  const noneInput = mk('1994-12-15', '06:30');
+  const mangalMismatch = computeAshtakoota(partialInput, noneInput);
+  assert.equal(mangalMismatch.mangalA.severity, 'partial');
+  assert.equal(mangalMismatch.mangalB.severity, 'none');
+  assert.equal(mangalMismatch.mangalCompatible, false);
+});
+
+test('Full Audit 5: Shani Paya (Murti Nirnaya) computed from Transit Moon at Saturn sign ingress', () => {
+  const mkBirth = (dateStr: string) => ({
+    name: '',
+    dateStr,
+    timeStr: '10:15',
+    lat: 26.1445,
+    lon: 91.7362,
+    utcOffsetMinutes: 330,
+  });
+  const nov2026 = new Date(Date.UTC(2026, 10, 24, 6, 0, 0));
+
+  // Saturn entered Meena (11) on 29 Mar 2025 when Transit Moon was also in Meena (11).
+  // House from Natal Moon to Transit Moon (Meena=11):
+  // Meena (11) -> 1st -> Gold; Kumbha (10) -> 2nd -> Silver; Makara (9) -> 3rd -> Copper; Dhanu (8) -> 4th -> Iron.
+  assert.equal(computeSadeSati(mkBirth('1994-08-24'), nov2026).paya, 'gold');
+  assert.equal(computeSadeSati(mkBirth('1994-08-22'), nov2026).paya, 'silver');
+  assert.equal(computeSadeSati(mkBirth('1994-08-19'), nov2026).paya, 'copper');
+  assert.equal(computeSadeSati(mkBirth('1994-08-17'), nov2026).paya, 'iron');
+});
+
+test('Full Audit 6: Numerology non-Latin name handling, leap-day clamping, Nakshatra syllable parity & in-sign DMS', () => {
+  const nonLatin = computeNumerology('आरव शर्मा', '1996-05-15');
+  assert.equal(nonLatin.hasValidName, false);
+  assert.equal(nonLatin.namankCompound, 0);
+  assert.equal(nonLatin.namank, null);
+  assert.equal(nonLatin.namankPlanet, null);
+  assert.equal(nonLatin.mulank, 6);
+
+  const validName = computeNumerology('Aarav Sharma', '1996-05-15');
+  assert.equal(validName.hasValidName, true);
+  assert.ok(validName.namank !== null && validName.namank >= 1 && validName.namank <= 9);
+  assert.ok(validName.namankPlanet !== null);
+
+  // Non-leap century year 1900-02-29 must clamp to 1900-02-28
+  const clamped = computeNumerology('Test User', '1900-02-29');
+  assert.equal(clamped.birthDateStr, '1900-02-28');
+  assert.equal(clamped.mulank, 1); // 2 + 8 = 10 -> 1
+  assert.equal(clamped.bhagyank, 4); // 1+9+0+0+0+2+2+8 = 22 -> 4
+
+  // Uttara Bhadrapada (index 25) Pada 4 syllable parity across en / hi / as
+  assert.equal(NAKSHATRA_PADA_SYLLABLES.en[25][3], 'Jna');
+  assert.equal(NAKSHATRA_PADA_SYLLABLES.hi[25][3], 'ञ');
+  assert.equal(NAKSHATRA_PADA_SYLLABLES.as[25][3], 'ঞ');
+
+  // In-sign DMS boundary safety
+  assert.equal(formatDMS(29.996), '29°59′');
+});
+

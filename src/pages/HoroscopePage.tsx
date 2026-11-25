@@ -3,7 +3,7 @@ import { ArrowRight, Info, Sparkles, Orbit } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useRouter } from '../context/RouterContext';
 import type { ZodiacId } from '../i18n/types';
-import { computeCurrentTransits, formatDegMin } from '../utils/vedicAstrology';
+import { computeCurrentTransits, formatDegMin, formatDMS } from '../utils/vedicAstrology';
 import { formatPanchangDate, localizeDigits } from '../utils/panchang';
 import { CALC_UI, PLANET_NAMES, RASHI_NAMES } from '../i18n/vedicLabels';
 import { SectionHeading } from '../components/SectionHeading';
@@ -272,7 +272,7 @@ export function HoroscopePage({ selectedSignId }: HoroscopePageProps) {
                     {pl.retrograde ? ` (${pCopy.retroShort})` : ''}
                   </p>
                   <p className="mt-0.5 font-mono tabular-nums text-[11px] text-[#8C5320]">
-                    {localizeDigits(formatDegMin(pl.degreeInSign), language)}
+                    {localizeDigits(formatDMS(pl.degreeInSign), language)}
                   </p>
                 </div>
               ))}

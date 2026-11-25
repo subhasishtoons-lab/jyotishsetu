@@ -162,13 +162,26 @@ export function NumerologyPage() {
               {/* Chaldean Namank */}
               <div className="p-6 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/40">
                 <p className="text-xs text-[#EBD08D] font-medium">{labels.namank}</p>
-                <p className="mt-2 font-display text-5xl font-semibold text-[#F5DC9B] tabular-nums">
-                  {localizeDigits(result.namank, language)}
-                </p>
-                <p className="mt-2 text-xs text-[#F8F0E3]/80">
-                  {labels.compound}: {localizeDigits(result.namankCompound, language)} ·{' '}
-                  <strong>{PLANET_NAMES[language][result.namankPlanet]}</strong>
-                </p>
+                {result.hasValidName && result.namank !== null && result.namankPlanet ? (
+                  <>
+                    <p className="mt-2 font-display text-5xl font-semibold text-[#F5DC9B] tabular-nums">
+                      {localizeDigits(result.namank, language)}
+                    </p>
+                    <p className="mt-2 text-xs text-[#F8F0E3]/80">
+                      {labels.compound}: {localizeDigits(result.namankCompound, language)} ·{' '}
+                      <strong>{PLANET_NAMES[language][result.namankPlanet]}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 font-display text-5xl font-semibold text-[#F5DC9B]/70 tabular-nums">
+                      —
+                    </p>
+                    <p className="mt-2 text-xs text-[#F8F0E3]/80 leading-relaxed">
+                      {labels.nameHint}
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
