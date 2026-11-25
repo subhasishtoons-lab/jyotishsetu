@@ -31,6 +31,8 @@ import {
   formatPanchangDate,
   formatLocalTime,
   formatShortDate,
+  formatDateInTimeZone,
+  getTimeZoneDateIso,
 } from './panchang';
 import {
   getLahiriAyanamsha,
@@ -48,6 +50,7 @@ import {
   computeLivePanchang,
   computeAshtakoota,
   computeMangalDosha,
+  computeSaturnTransits,
   computeSadeSati,
   computeNakshatraDetails,
   computeNumerology,
@@ -376,7 +379,9 @@ test('Ashtakoota 36-Guna Matching, Mangal Dosha, Sade Sati, Nakshatra, Numerolog
 
   const sadeSati = computeSadeSati(inputA, new Date(Date.UTC(2026, 10, 24, 6, 0, 0)));
   assert.ok(sadeSati.houseFromMoon >= 1 && sadeSati.houseFromMoon <= 12);
-  assert.equal(sadeSati.windows.length, 3);
+  assert.ok(sadeSati.windows.length >= 3);
+  assert.ok(sadeSati.sadeSatiStartDate && sadeSati.sadeSatiEndDate);
+  assert.ok(sadeSati.dhaiyaWindows.length >= 2);
 
   const nak = computeNakshatraDetails(inputA);
   assert.ok(nak.nakshatraIndex >= 0 && nak.nakshatraIndex <= 26);
@@ -800,4 +805,178 @@ test('Audit 8: Leap years, DST/historical time zones, zero coordinates, and hist
     const sep = Math.abs(((k - r + 360) % 360) - 180);
     assert.ok(sep < 1e-9, `Rahu-Ketu opposition failed at ${iso}: ${sep}`);
   }
+});
+
+// ============================================================================
+// SADE SATI & SHANI DHAIYA AUDIT: 2020–2028 SATURN TRANSITS & RETROGRADE LOOPS
+// ============================================================================
+
+test('Sade Sati Audit 1: 2020–2028 Lahiri sidereal Saturn sign ingresses & retrograde re-entries match astronomical references', () => {
+  const transits = computeSaturnTransits(
+    new Date(Date.UTC(2019, 0, 1)),
+    new Date(Date.UTC(2031, 0, 1)),
+  );
+
+  // Extract IST civil dates for every computed transit interval in 2020–2028
+  const summaryIst = transits
+    .filter((iv) => iv.startDate.getUTCFullYear() >= 2020 && iv.startDate.getUTCFullYear() <= 2028)
+    .map((iv) => ({
+      sign: iv.rashiId,
+      startIst: getTimeZoneDateIso(iv.startDate, 'Asia/Kolkata', 330),
+      endIst: getTimeZoneDateIso(iv.endDate, 'Asia/Kolkata', 330),
+      retroEntry: iv.isRetrogradeEntry,
+      retroExit: iv.isRetrogradeExit,
+    }));
+
+  // Independent astronomical reference milestones (IST):
+  // 1) Capricorn: 2020-01-24 -> 2022-04-29
+  // 2) Early Aquarius: 2022-04-29 -> 2022-07-12 (retrograde exit back to Capricorn)
+  // 3) Retrograde return to Capricorn: 2022-07-12 -> 2023-01-17
+  // 4) Aquarius re-entry: 2023-01-17 -> 2025-03-29
+  // 5) Pisces: 2025-03-29 -> 2027-06-03
+  // 6) Aries: 2027-06-03 -> 2027-10-20 (retrograde exit back to Pisces)
+  // 7) Retrograde return to Pisces: 2027-10-20 -> 2028-02-23
+  // 8) Final entry into Aries: 2028-02-23 -> 2029-08-08
+  assert.deepEqual(summaryIst, [
+    { sign: 'makara', startIst: '2020-01-24', endIst: '2022-04-29', retroEntry: false, retroExit: false },
+    { sign: 'kumbha', startIst: '2022-04-29', endIst: '2022-07-12', retroEntry: false, retroExit: true },
+    { sign: 'makara', startIst: '2022-07-12', endIst: '2023-01-17', retroEntry: true, retroExit: false },
+    { sign: 'kumbha', startIst: '2023-01-17', endIst: '2025-03-29', retroEntry: false, retroExit: false },
+    { sign: 'meena', startIst: '2025-03-29', endIst: '2027-06-03', retroEntry: false, retroExit: false },
+    { sign: 'mesha', startIst: '2027-06-03', endIst: '2027-10-20', retroEntry: false, retroExit: true },
+    { sign: 'meena', startIst: '2027-10-20', endIst: '2028-02-23', retroEntry: true, retroExit: false },
+    { sign: 'mesha', startIst: '2028-02-23', endIst: '2029-08-08', retroEntry: false, retroExit: false },
+  ]);
+});
+
+test('Sade Sati Audit 2: Rising, Peak, Setting intervals, retrograde returns, and ending dates for affected Moon signs', () => {
+  const mkBirth = (dateStr: string) => ({
+    name: '',
+    dateStr,
+    timeStr: '10:15',
+    lat: 26.1445,
+    lon: 91.7362,
+    utcOffsetMinutes: 330,
+  });
+  const toIst = (d: Date | null) => (d ? getTimeZoneDateIso(d, 'Asia/Kolkata', 330) : null);
+  const nov2026 = new Date(Date.UTC(2026, 10, 24, 6, 0, 0));
+
+  // 1) Aquarius Moon (Kumbha): Active Setting phase in Nov 2026; 6 separate intervals incl. 2022 & 2027-2028 retrogrades
+  const kumbha = computeSadeSati(mkBirth('1994-08-22'), nov2026);
+  assert.equal(kumbha.natalMoonRashiId, 'kumbha');
+  assert.equal(kumbha.status, 'setting');
+  assert.equal(toIst(kumbha.sadeSatiStartDate), '2020-01-24');
+  assert.equal(toIst(kumbha.sadeSatiEndDate), '2028-02-23');
+  assert.deepEqual(
+    kumbha.windows.map((w) => ({
+      phase: w.phase,
+      start: toIst(w.startDate),
+      end: toIst(w.endDate),
+      retro: w.isRetrogradeEntry,
+      reentry: w.isReentry,
+    })),
+    [
+      { phase: 'rising', start: '2020-01-24', end: '2022-04-29', retro: false, reentry: false },
+      { phase: 'peak', start: '2022-04-29', end: '2022-07-12', retro: false, reentry: false },
+      { phase: 'rising', start: '2022-07-12', end: '2023-01-17', retro: true, reentry: true },
+      { phase: 'peak', start: '2023-01-17', end: '2025-03-29', retro: false, reentry: true },
+      { phase: 'setting', start: '2025-03-29', end: '2027-06-03', retro: false, reentry: false },
+      { phase: 'setting', start: '2027-10-20', end: '2028-02-23', retro: true, reentry: true },
+    ],
+  );
+
+  // 2) Pisces Moon (Meena): Active Peak phase in Nov 2026; starts 29 Apr 2022, ends 17 Apr 2030
+  const meena = computeSadeSati(mkBirth('1994-08-24'), nov2026);
+  assert.equal(meena.natalMoonRashiId, 'meena');
+  assert.equal(meena.status, 'peak');
+  assert.equal(toIst(meena.sadeSatiStartDate), '2022-04-29');
+  assert.equal(toIst(meena.sadeSatiEndDate), '2030-04-17');
+  // Must show separate Peak (2025-03-29..2027-06-03), Setting (2027-06-03..2027-10-20), Retrograde Peak (2027-10-20..2028-02-23), Setting re-entry (2028-02-23..)
+  assert.ok(meena.windows.some((w) => w.phase === 'peak' && toIst(w.startDate) === '2027-10-20' && toIst(w.endDate) === '2028-02-23' && w.isRetrogradeEntry));
+  assert.ok(meena.windows.some((w) => w.phase === 'setting' && toIst(w.startDate) === '2028-02-23' && w.isReentry));
+
+  // 3) Aries Moon (Mesha): Active Rising phase in Nov 2026; starts 29 Mar 2025
+  const mesha = computeSadeSati(mkBirth('1994-08-26'), nov2026);
+  assert.equal(mesha.natalMoonRashiId, 'mesha');
+  assert.equal(mesha.status, 'rising');
+  assert.equal(toIst(mesha.sadeSatiStartDate), '2025-03-29');
+  assert.ok(mesha.windows.some((w) => w.phase === 'rising' && toIst(w.startDate) === '2025-03-29' && toIst(w.endDate) === '2027-06-03'));
+  assert.ok(mesha.windows.some((w) => w.phase === 'peak' && toIst(w.startDate) === '2027-06-03' && toIst(w.endDate) === '2027-10-20'));
+  assert.ok(mesha.windows.some((w) => w.phase === 'rising' && toIst(w.startDate) === '2027-10-20' && toIst(w.endDate) === '2028-02-23' && w.isRetrogradeEntry));
+  assert.ok(mesha.windows.some((w) => w.phase === 'peak' && toIst(w.startDate) === '2028-02-23' && w.isReentry));
+
+  // 4) Capricorn Moon (Makara) during active Setting phase (Jun 2024): ends 29 Mar 2025
+  const makara = computeSadeSati(mkBirth('1994-08-19'), new Date(Date.UTC(2024, 5, 15, 6, 0, 0)));
+  assert.equal(makara.natalMoonRashiId, 'makara');
+  assert.equal(makara.status, 'setting');
+  assert.equal(toIst(makara.sadeSatiEndDate), '2025-03-29');
+
+  // 5) Sagittarius Moon (Dhanu) during active Setting phase (Jun 2021): ends 17 Jan 2023 after 2022 Capricorn retro return
+  const dhanu2021 = computeSadeSati(mkBirth('1994-08-17'), new Date(Date.UTC(2021, 5, 15, 6, 0, 0)));
+  assert.equal(dhanu2021.natalMoonRashiId, 'dhanu');
+  assert.equal(dhanu2021.status, 'setting');
+  assert.equal(toIst(dhanu2021.sadeSatiEndDate), '2023-01-17');
+  assert.ok(dhanu2021.windows.some((w) => w.phase === 'setting' && toIst(w.startDate) === '2022-07-12' && toIst(w.endDate) === '2023-01-17' && w.isRetrogradeEntry));
+});
+
+test('Sade Sati Audit 3: Shani Dhaiya periods & birthplace timezone date formatting', () => {
+  const mkBirth = (dateStr: string) => ({
+    name: '',
+    dateStr,
+    timeStr: '10:15',
+    lat: 26.1445,
+    lon: 91.7362,
+    utcOffsetMinutes: 330,
+  });
+  const toIst = (d: Date) => getTimeZoneDateIso(d, 'Asia/Kolkata', 330);
+  const nov2026 = new Date(Date.UTC(2026, 10, 24, 6, 0, 0));
+
+  // Sagittarius Moon -> 4th House Dhaiya (Kantaka Shani) when Saturn is in Pisces (2025-03-29..2027-06-03 & 2027-10-20..2028-02-23)
+  const dhanu = computeSadeSati(mkBirth('1994-08-17'), nov2026);
+  assert.equal(dhanu.status, 'dhaiya_4');
+  const dhanuD4 = dhanu.dhaiyaWindows.filter((w) => w.type === 'dhaiya_4');
+  assert.deepEqual(
+    dhanuD4.map((w) => ({ start: toIst(w.startDate), end: toIst(w.endDate), retro: w.isRetrogradeEntry })),
+    [
+      { start: '2025-03-29', end: '2027-06-03', retro: false },
+      { start: '2027-10-20', end: '2028-02-23', retro: true },
+    ],
+  );
+
+  // Leo Moon -> 8th House Dhaiya (Ashtama Shani) when Saturn is in Pisces (exact same intervals)
+  const simha = computeSadeSati(mkBirth('1994-08-08'), nov2026);
+  assert.equal(simha.status, 'dhaiya_8');
+  const simhaD8 = simha.dhaiyaWindows.filter((w) => w.type === 'dhaiya_8');
+  assert.deepEqual(
+    simhaD8.map((w) => ({ start: toIst(w.startDate), end: toIst(w.endDate), retro: w.isRetrogradeEntry })),
+    [
+      { start: '2025-03-29', end: '2027-06-03', retro: false },
+      { start: '2027-10-20', end: '2028-02-23', retro: true },
+    ],
+  );
+
+  // Cancer Moon in Jun 2024 -> 8th House Dhaiya in Aquarius (29 Apr–12 Jul 2022 & 17 Jan 2023–29 Mar 2025)
+  const karka = computeSadeSati(mkBirth('1994-08-06'), new Date(Date.UTC(2024, 5, 15, 6, 0, 0)));
+  assert.equal(karka.status, 'dhaiya_8');
+  const karkaD8 = karka.dhaiyaWindows.filter((w) => w.type === 'dhaiya_8');
+  assert.deepEqual(
+    karkaD8.map((w) => ({ start: toIst(w.startDate), end: toIst(w.endDate), reentry: w.isReentry })),
+    [
+      { start: '2022-04-29', end: '2022-07-12', reentry: false },
+      { start: '2023-01-17', end: '2025-03-29', reentry: true },
+    ],
+  );
+
+  // Birthplace timezone date shift verification (IST vs New York EDT/EST)
+  const kumbha = computeSadeSati(mkBirth('1994-08-22'), nov2026);
+  const ariesIngress = kumbha.windows.find((w) => w.phase === 'setting' && !w.isReentry)!.endDate; // 2027-06-03T00:33Z
+  const piscesRetroReturn = kumbha.windows.find((w) => w.phase === 'setting' && w.isRetrogradeEntry)!.startDate; // 2027-10-20T00:48Z
+  const capricornIngress = kumbha.sadeSatiStartDate!; // 2020-01-24T04:33Z
+
+  assert.equal(formatDateInTimeZone(ariesIngress, 'en', 'Asia/Kolkata', 330), '3 June 2027');
+  assert.equal(formatDateInTimeZone(ariesIngress, 'en', 'America/New_York', -300), '2 June 2027');
+  assert.equal(formatDateInTimeZone(piscesRetroReturn, 'en', 'Asia/Kolkata', 330), '20 October 2027');
+  assert.equal(formatDateInTimeZone(piscesRetroReturn, 'en', 'America/New_York', -300), '19 October 2027');
+  assert.equal(formatDateInTimeZone(capricornIngress, 'en', 'Asia/Kolkata', 330), '24 January 2020');
+  assert.equal(formatDateInTimeZone(capricornIngress, 'en', 'America/New_York', -300), '23 January 2020');
 });

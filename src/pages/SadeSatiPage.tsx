@@ -1,8 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { Orbit, ShieldCheck, AlertTriangle, Calendar, ArrowRight } from 'lucide-react';
+import { Orbit, ShieldCheck, AlertTriangle, Calendar, ArrowRight, RotateCcw } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { computeSadeSati, formatDegMin } from '../utils/vedicAstrology';
-import { formatShortDate, localizeDigits } from '../utils/panchang';
+import {
+  formatDateInTimeZone,
+  formatUtcOffsetLabel,
+  getPanchangCityById,
+  localizeDigits,
+} from '../utils/panchang';
 import {
   CALC_UI,
   NAKSHATRA_NAMES,
@@ -23,28 +28,37 @@ const COPY = {
     kicker: 'SHANI GOCHARA · SIDEREAL SATURN TRANSIT',
     title: 'Sade Sati & Shani Dhaiya Calculator',
     subtitle:
-      'Compute your natal Moon sign (Janma Rashi) and compare it against Saturn’s live sidereal transit position (Lahiri Ayanamsha) to identify Sade Sati phases, Shani Dhaiya, Paya, and actual transit date windows.',
+      'Compute your natal Moon sign (Janma Rashi) and compare it against Saturn’s live sidereal transit position (Lahiri Ayanamsha) to identify Sade Sati phases, Shani Dhaiya, Paya, and exact ephemeris transit intervals.',
     formTitle: 'Enter Birth Details',
     submitBtn: 'Check Sade Sati Status',
     natalMoonLabel: 'Natal Moon Sign (Janma Rashi)',
     liveSaturnLabel: 'Current Sidereal Shani (Saturn)',
     houseFromMoonLabel: 'Transit House from Moon',
     payaLabel: 'Classical Transit Paya',
-    timelineTitle: 'Calculated Sade Sati Transit Windows',
+    timelineTitle: 'Calculated Sade Sati Transit Intervals',
     timelineSub:
-      'Dates below are computed by scanning Saturn’s actual sidereal ecliptic longitude across the 12th, 1st, and 2nd signs from your natal Moon (accounting for retrograde returns).',
+      'Dates below are computed directly from Saturn’s exact Lahiri sidereal Rashi crossings across the 12th, 1st, and 2nd signs from your natal Moon. Retrograde sign re-entries are listed as separate intervals.',
+    cycleStartLabel: 'Cycle Begins',
+    cycleEndLabel: 'Sade Sati Ends',
+    timezoneLabel: 'Timezone',
+    retroReturnTag: 'Retrograde Return',
+    reentryTag: 'Direct Re-entry',
     saturnSignCol: 'Shani Rashi',
-    periodCol: 'Approximate Transit Span',
+    dhaiyaTitle: 'Calculated Shani Dhaiya Transit Intervals',
+    dhaiyaSub:
+      '4th-house (Kantaka / Ardha-Ashtama Shani) and 8th-house (Ashtama Shani) Saturn transits from your natal Moon, computed by the same sidereal ingress engine including retrograde returns.',
+    dhaiya4Name: '4th House Dhaiya · Kantaka Shani',
+    dhaiya8Name: '8th House Dhaiya · Ashtama Shani',
     guidanceTitle: 'Traditional Perspective on Shani Gochara',
     guidanceBody:
-      'In classical Jyotish, Shani (Saturn) is the karaka of discipline, patience, and enduring karma rather than fear. Sade Sati unfolds across three 2.5-year phases (Rising, Peak, and Setting) totaling ~7.5 years; its lived effect always depends on Saturn’s functional dignity in your full Kundli and your active Vimshottari Dasha.',
+      'In classical Jyotish, Shani (Saturn) is the karaka of discipline, patience, and enduring karma rather than fear. Sade Sati unfolds across three phases (Rising, Peak, and Setting) totaling ~7.5 years; its lived effect always depends on Saturn’s functional dignity in your full Kundli and your active Vimshottari Dasha.',
     kundliCta: 'View Full Birth Kundli & Dasha',
   },
   hi: {
     kicker: 'शनि गोचर · निरयण शनि गणना',
     title: 'साढ़ेसाती एवं शनि ढैय्या कैलकुलेटर',
     subtitle:
-      'अपनी जन्म राशि (चंद्र राशि) की गणना करें और लाहिड़ी अयनांश के आधार पर वर्तमान शनि गोचर से तुलना करके साढ़ेसाती के चरण, ढैय्या, पाया और वास्तविक गोचर तिथियाँ जानें।',
+      'अपनी जन्म राशि (चंद्र राशि) की गणना करें और लाहिड़ी अयनांश के आधार पर वर्तमान शनि गोचर से तुलना करके साढ़ेसाती के चरण, ढैय्या, पाया और सटीक खगोलीय गोचर अवधियाँ जानें।',
     formTitle: 'जन्म विवरण दर्ज करें',
     submitBtn: 'साढ़ेसाती स्थिति जांचें',
     natalMoonLabel: 'जन्म राशि (चंद्र राशि)',
@@ -53,9 +67,18 @@ const COPY = {
     payaLabel: 'शास्त्रीय शनि पाया',
     timelineTitle: 'गणित साढ़ेसाती गोचर अवधियाँ',
     timelineSub:
-      'नीचे दी गई तिथियाँ आपकी जन्म राशि से 12वें, 1वें और 2रे भाव में शनि के वास्तविक निरयण खगोलीय गोचर (वक्री वापसी सहित) की गणना से निकाली गई हैं।',
+      'नीचे दी गई तिथियाँ आपकी जन्म राशि से 12वें, 1वें और 2रे भाव में शनि के वास्तविक लाहिड़ी निरयण राशि प्रवेशों से निकाली गई हैं। वक्री राशि वापसी को अलग अवधि के रूप में दर्शाया गया है।',
+    cycleStartLabel: 'चक्र प्रारंभ',
+    cycleEndLabel: 'साढ़ेसाती समाप्ति',
+    timezoneLabel: 'समय क्षेत्र',
+    retroReturnTag: 'वक्री वापसी',
+    reentryTag: 'पुनः प्रवेश',
     saturnSignCol: 'शनि राशि',
-    periodCol: 'अनुमानित गोचर अवधि',
+    dhaiyaTitle: 'गणित शनि ढैय्या गोचर अवधियाँ',
+    dhaiyaSub:
+      'आपकी जन्म राशि से 4थे भाव (कंटक / अर्धाष्टम शनि) और 8वें भाव (अष्टम शनि) में शनि के सटीक निरयण गोचर, वक्री वापसी सहित।',
+    dhaiya4Name: 'चतुर्थ भाव ढैय्या · कंटक शनि',
+    dhaiya8Name: 'अष्टम भाव ढैय्या · अष्टम शनि',
     guidanceTitle: 'शनि गोचर का शास्त्रीय दृष्टिकोण',
     guidanceBody:
       'शास्त्रीय ज्योतिष में शनि भय नहीं बल्कि अनुशासन, धैर्य और कर्म-परिपक्वता के कारक हैं। साढ़ेसाती तीन चरणों (उदय, शिखर और अस्त) में लगभग 7.5 वर्षों तक चलती है; इसका वास्तविक फल जन्म कुंडली में शनि की स्थिति और चल रही विंशोत्तरी दशा पर निर्भर करता है।',
@@ -63,9 +86,9 @@ const COPY = {
   },
   as: {
     kicker: 'শনি গোচৰ · নিৰয়ণ শনি গণনা',
-    title: 'সাঢ়েসাতী আৰু শনি ঢ়ৈয়া গণক',
+    title: 'সাঢ়েসাতী আৰু শনি ঢৈয়া গণক',
     subtitle:
-      'আপোনাৰ জন্ম ৰাশি (চন্দ্ৰ ৰাশি) নিৰ্ণয় কৰক আৰু লাহিড়ী অয়নাংশ অনুসৰি বৰ্তমান শনি গোচৰৰ সৈতে তুলনা কৰি সাঢ়েসাতীৰ পৰ্যায়, ঢ়ৈয়া, পায়া আৰু প্ৰকৃত গোচৰ সময়সীমা জানক।',
+      'আপোনাৰ জন্ম ৰাশি (চন্দ্ৰ ৰাশি) নিৰ্ণয় কৰক আৰু লাহিড়ী অয়নাংশ অনুসৰি বৰ্তমান শনি গোচৰৰ সৈতে তুলনা কৰি সাঢ়েসাতীৰ পৰ্যায়, ঢৈয়া, পায়া আৰু সঠিক খগোলীয় গোচৰ সময়সীমা জানক।',
     formTitle: 'জন্ম বিৱৰণ দিয়ক',
     submitBtn: 'সাঢ়েসাতী স্থিতি পৰীক্ষা কৰক',
     natalMoonLabel: 'জন্ম ৰাশি (চন্দ্ৰ ৰাশি)',
@@ -74,9 +97,18 @@ const COPY = {
     payaLabel: 'শাস্ত্ৰীয় শনি পায়া',
     timelineTitle: 'গণনাকৃত সাঢ়েসাতী গোচৰ সময়সীমা',
     timelineSub:
-      'তলৰ তাৰিখসমূহ আপোনাৰ জন্ম ৰাশিৰ পৰা দ্বাদশ, প্ৰথম আৰু দ্বিতীয় ৰাশিত শনিৰ প্ৰকৃত নিৰয়ণ খগোলীয় গোচৰ (বক্ৰী গমনসহ) বিশ্লেষণ কৰি নিৰ্ণয় কৰা হৈছে।',
+      'তলৰ তাৰিখসমূহ আপোনাৰ জন্ম ৰাশিৰ পৰা দ্বাদশ, প্ৰথম আৰু দ্বিতীয় ৰাশিত শনিৰ প্ৰকৃত লাহিড়ী নিৰয়ণ ৰাশি পৰিৱৰ্তনৰ পৰা গণনা কৰা হৈছে। বক্ৰী ৰাশি প্ৰত্যাৱৰ্তনসমূহ পৃথক সময়খণ্ড হিচাপে দেখুওৱা হৈছে।',
+    cycleStartLabel: 'চক্ৰ আৰম্ভণি',
+    cycleEndLabel: 'সাঢ়েসাতী সমাপ্তি',
+    timezoneLabel: 'সময় অঞ্চল',
+    retroReturnTag: 'বক্ৰী প্ৰত্যাৱৰ্তন',
+    reentryTag: 'পুনঃপ্ৰৱেশ',
     saturnSignCol: 'শনি ৰাশি',
-    periodCol: 'আনুমানিক গোচৰ কাল',
+    dhaiyaTitle: 'গণনাকৃত শনি ঢৈয়া গোচৰ সময়সীমা',
+    dhaiyaSub:
+      'একে নিৰয়ণ খগোলীয় ইঞ্জিনৰ দ্বাৰা আপোনাৰ জন্ম ৰাশিৰ পৰা চতুৰ্থ (কণ্টক শনি) আৰু অষ্টম (অষ্টম শনি) ভাৱৰ শনি ঢৈয়া সময়খণ্ড (বক্ৰী প্ৰত্যাৱৰ্তনসহ)।',
+    dhaiya4Name: 'চতুৰ্থ ভাৱৰ ঢৈয়া · কণ্টক শনি',
+    dhaiya8Name: 'অষ্টম ভাৱৰ ঢৈয়া · অষ্টম শনি',
     guidanceTitle: 'শনি গোচৰৰ শাস্ত্ৰীয় দৃষ্টিভংগী',
     guidanceBody:
       'শাস্ত্ৰীয় জ্যোতিষত শনি ভয়ৰ নহয়, বৰঞ্চ শৃংখলা, ধৈৰ্য আৰু কৰ্ম-পৰিপক্বতাৰ কাৰক গ্ৰহ। সাঢ়েসাতী তিনিটা পৰ্যায়ত (উদয়, শিখৰ আৰু অস্ত) প্ৰায় ৭.৫ বছৰ ধৰি চলে; ইয়াৰ প্ৰকৃত ফল সম্পূৰ্ণ জন্ম কুণ্ডলীত শনিৰ অৱস্থান আৰু চলি থকা বিংশোত্তৰী দশাৰ ওপৰত নিৰ্ভৰ কৰে।',
@@ -92,7 +124,20 @@ export function SadeSatiPage() {
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1994-08-22', timeStr: '10:15', cityId: 'guwahati' }),
   );
-  const [submittedInput, setSubmittedInput] = useState(() => formStateToBirthInput(form));
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
+
+  const submittedInput = useMemo(() => formStateToBirthInput(submittedForm), [submittedForm]);
+  const activeCity = useMemo(
+    () => (submittedForm.useCustomCoords ? null : getPanchangCityById(submittedForm.cityId)),
+    [submittedForm],
+  );
+  const ianaTimeZone = activeCity?.ianaTimeZone ?? null;
+  const timezoneBadge = activeCity
+    ? activeCity.timezone
+    : formatUtcOffsetLabel(submittedInput.utcOffsetMinutes);
+
+  const formatTransitDate = (utcDate: Date) =>
+    formatDateInTimeZone(utcDate, language, ianaTimeZone, submittedInput.utcOffsetMinutes);
 
   const result = useMemo(() => computeSadeSati(submittedInput), [submittedInput]);
   const isActive = result.status !== 'none';
@@ -125,7 +170,7 @@ export function SadeSatiPage() {
               title={copy.formTitle}
               value={form}
               onChange={setForm}
-              onSubmit={() => setSubmittedInput(formStateToBirthInput(form))}
+              onSubmit={() => setSubmittedForm(form)}
               submitLabel={copy.submitBtn}
               showName={false}
             />
@@ -204,20 +249,42 @@ export function SadeSatiPage() {
               <p className="mt-1.5 text-sm text-[#542D24] leading-relaxed">{payaInfo.note}</p>
             </div>
 
-            {/* Calculated 3-Phase Transit Windows */}
+            {/* Calculated Sade Sati Transit Intervals (with Retrograde Re-entries) */}
             <div className="p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
-              <div className="flex items-center gap-2 text-[#351016]">
-                <Calendar className="w-5 h-5 text-[#C47616]" aria-hidden="true" />
-                <h3 className="font-display text-xl font-semibold">{copy.timelineTitle}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[#351016]">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-[#C47616]" aria-hidden="true" />
+                  <h3 className="font-display text-xl font-semibold">{copy.timelineTitle}</h3>
+                </div>
+                <span className="text-[11px] font-mono tabular-nums px-2.5 py-1 rounded bg-[#EFE3CE] border border-[#D8AD59]/40 text-[#542D24]">
+                  {copy.timezoneLabel}: {timezoneBadge}
+                </span>
               </div>
               <p className="mt-1.5 text-xs sm:text-sm text-[#542D24] leading-relaxed">
                 {copy.timelineSub}
               </p>
 
+              {result.sadeSatiStartDate && result.sadeSatiEndDate && (
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-md bg-[#EFE3CE]/65 border border-[#D8AD59]/40">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8C5320]">{copy.cycleStartLabel}</p>
+                    <p className="mt-0.5 font-mono tabular-nums text-sm font-semibold text-[#351016]">
+                      {formatTransitDate(result.sadeSatiStartDate)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#8C5320]">{copy.cycleEndLabel}</p>
+                    <p className="mt-0.5 font-mono tabular-nums text-sm font-semibold text-[#351016]">
+                      {formatTransitDate(result.sadeSatiEndDate)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-5 space-y-3">
                 {result.windows.map((win) => (
                   <div
-                    key={win.phase}
+                    key={`${win.phase}-${win.startDate.toISOString()}`}
                     className={`p-4 rounded-md border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                       win.isCurrent
                         ? 'bg-[#351016] text-[#F8F0E3] border-[#D8AD59]'
@@ -234,6 +301,29 @@ export function SadeSatiPage() {
                             {ui.currentTag}
                           </span>
                         )}
+                        {win.isRetrogradeEntry && (
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                              win.isCurrent
+                                ? 'bg-[#4A1820] text-[#EBD08D] border-[#D8AD59]/50'
+                                : 'bg-[#F5E4CA] text-[#7C2D12] border-[#B85D19]/40'
+                            }`}
+                          >
+                            <RotateCcw className="w-3 h-3" aria-hidden="true" />
+                            <span>{copy.retroReturnTag}</span>
+                          </span>
+                        )}
+                        {!win.isRetrogradeEntry && win.isReentry && (
+                          <span
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                              win.isCurrent
+                                ? 'bg-[#4A1820] text-[#EBD08D] border-[#D8AD59]/50'
+                                : 'bg-[#EFE3CE] text-[#542D24] border-[#D8AD59]/50'
+                            }`}
+                          >
+                            {copy.reentryTag}
+                          </span>
+                        )}
                       </div>
                       <p
                         className={`mt-0.5 text-xs ${
@@ -244,13 +334,84 @@ export function SadeSatiPage() {
                       </p>
                     </div>
                     <p className="font-mono tabular-nums text-xs sm:text-sm font-semibold">
-                      {formatShortDate(win.startDate, language)} —{' '}
-                      {formatShortDate(win.endDate, language)}
+                      {formatTransitDate(win.startDate)} — {formatTransitDate(win.endDate)}
                     </p>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Calculated Shani Dhaiya Transit Intervals (4th & 8th House from Moon) */}
+            {result.dhaiyaWindows.length > 0 && (
+              <div className="p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
+                <div className="flex items-center gap-2 text-[#351016]">
+                  <Orbit className="w-5 h-5 text-[#C47616]" aria-hidden="true" />
+                  <h3 className="font-display text-xl font-semibold">{copy.dhaiyaTitle}</h3>
+                </div>
+                <p className="mt-1.5 text-xs sm:text-sm text-[#542D24] leading-relaxed">
+                  {copy.dhaiyaSub}
+                </p>
+
+                <div className="mt-5 space-y-3">
+                  {result.dhaiyaWindows.map((win) => (
+                    <div
+                      key={`${win.type}-${win.startDate.toISOString()}`}
+                      className={`p-4 rounded-md border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        win.isCurrent
+                          ? 'bg-[#351016] text-[#F8F0E3] border-[#D8AD59]'
+                          : 'bg-[#F8F0E3]/70 text-[#351016] border-[#D8AD59]/35'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-display text-base font-semibold">
+                            {win.type === 'dhaiya_4' ? copy.dhaiya4Name : copy.dhaiya8Name}
+                          </p>
+                          {win.isCurrent && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-[#E99A32] text-[#2B0A10]">
+                              {ui.currentTag}
+                            </span>
+                          )}
+                          {win.isRetrogradeEntry && (
+                            <span
+                              className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                                win.isCurrent
+                                  ? 'bg-[#4A1820] text-[#EBD08D] border-[#D8AD59]/50'
+                                  : 'bg-[#F5E4CA] text-[#7C2D12] border-[#B85D19]/40'
+                              }`}
+                            >
+                              <RotateCcw className="w-3 h-3" aria-hidden="true" />
+                              <span>{copy.retroReturnTag}</span>
+                            </span>
+                          )}
+                          {!win.isRetrogradeEntry && win.isReentry && (
+                            <span
+                              className={`text-[11px] font-semibold px-2 py-0.5 rounded border ${
+                                win.isCurrent
+                                  ? 'bg-[#4A1820] text-[#EBD08D] border-[#D8AD59]/50'
+                                  : 'bg-[#EFE3CE] text-[#542D24] border-[#D8AD59]/50'
+                              }`}
+                            >
+                              {copy.reentryTag}
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className={`mt-0.5 text-xs ${
+                            win.isCurrent ? 'text-[#EBD08D]' : 'text-[#8C5320]'
+                          }`}
+                        >
+                          {copy.saturnSignCol}: {RASHI_NAMES[language][win.saturnRashiIndex]}
+                        </p>
+                      </div>
+                      <p className="font-mono tabular-nums text-xs sm:text-sm font-semibold">
+                        {formatTransitDate(win.startDate)} — {formatTransitDate(win.endDate)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Traditional Context & Cross-Link */}
             <div className="p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

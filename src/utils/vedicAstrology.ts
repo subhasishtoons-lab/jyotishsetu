@@ -186,12 +186,37 @@ export interface AshtakootaResult {
   mangalCompatible: boolean;
 }
 
+export interface SaturnTransitInterval {
+  rashiIndex: number; // 0..11
+  rashiId: ZodiacId;
+  startDate: Date;
+  endDate: Date;
+  /** True when Saturn backed into this sign while retrograde (e.g., Aries -> Pisces). */
+  isRetrogradeEntry: boolean;
+  /** True when Saturn exited this sign while retrograde. */
+  isRetrogradeExit: boolean;
+}
+
 export interface SadeSatiWindow {
   phase: 'rising' | 'peak' | 'setting';
   saturnRashiIndex: number;
   startDate: Date;
   endDate: Date;
   isCurrent: boolean;
+  /** True if Saturn entered this sign via retrograde motion from the following sign. */
+  isRetrogradeEntry: boolean;
+  /** True if this is a subsequent (2nd+) transit interval in this same sign during the cycle. */
+  isReentry: boolean;
+}
+
+export interface ShaniDhaiyaWindow {
+  type: 'dhaiya_4' | 'dhaiya_8';
+  saturnRashiIndex: number;
+  startDate: Date;
+  endDate: Date;
+  isCurrent: boolean;
+  isRetrogradeEntry: boolean;
+  isReentry: boolean;
 }
 
 export interface SadeSatiResult {
@@ -204,7 +229,10 @@ export interface SadeSatiResult {
   houseFromMoon: number; // 1..12
   status: 'rising' | 'peak' | 'setting' | 'dhaiya_4' | 'dhaiya_8' | 'none';
   paya: 'gold' | 'silver' | 'copper' | 'iron';
+  sadeSatiStartDate: Date | null;
+  sadeSatiEndDate: Date | null;
   windows: SadeSatiWindow[];
+  dhaiyaWindows: ShaniDhaiyaWindow[];
 }
 
 export interface MangalDoshaResult {
@@ -1349,8 +1377,136 @@ export function computeMangalDosha(input: BirthInput): MangalDoshaResult {
 }
 
 // ============================================================================
-// SADE SATI & SHANI DHAIYA CALCULATOR (REAL SATURN TRANSIT SCANNER)
+// SADE SATI & SHANI DHAIYA CALCULATOR (EXACT EPHEMERIS SATURN TRANSIT ENGINE)
 // ============================================================================
+
+const saturnTransitCache = new Map<string, SaturnTransitInterval[]>();
+
+function getSaturnSiderealSign(ms: number): number {
+  const lon = getSiderealLongitude('saturn', new Date(ms));
+  return Math.floor(lon / 30) % 12;
+}
+
+/**
+ * Computes exact sidereal Saturn sign transit intervals between startDate and endDate
+ * using Lahiri Ayanamsha and binary-search refinement (~0.1 second crossing precision).
+ * Every retrograde sign exit and re-entry is preserved as a separate contiguous interval.
+ */
+export function computeSaturnTransits(startDate: Date, endDate: Date): SaturnTransitInterval[] {
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return [];
+  }
+
+  const cacheKey = `${Math.floor(startMs / 86_400_000)}:${Math.floor(endMs / 86_400_000)}`;
+  const cached = saturnTransitCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // 4-day coarse step safely brackets even the briefest retrograde grazes across a Rashi boundary
+  const stepMs = 4 * 86_400_000;
+  const crossings: Array<{
+    ms: number;
+    fromSign: number;
+    toSign: number;
+    isRetrograde: boolean;
+  }> = [];
+
+  let prevMs = startMs;
+  let prevSign = getSaturnSiderealSign(prevMs);
+
+  for (let t = startMs + stepMs; t <= endMs; t += stepMs) {
+    const sampleMs = Math.min(t, endMs);
+    const currSign = getSaturnSiderealSign(sampleMs);
+    if (currSign !== prevSign) {
+      // Binary search to ~0.1s precision (4 days / 2^22 ≈ 0.08s)
+      let lo = prevMs;
+      let hi = sampleMs;
+      for (let iter = 0; iter < 22; iter++) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (getSaturnSiderealSign(mid) === prevSign) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      const isRetrograde = (prevSign - currSign + 12) % 12 === 1;
+      crossings.push({
+        ms: hi,
+        fromSign: prevSign,
+        toSign: currSign,
+        isRetrograde,
+      });
+      prevSign = currSign;
+    }
+    prevMs = sampleMs;
+    if (sampleMs === endMs) break;
+  }
+
+  const intervals: SaturnTransitInterval[] = [];
+  for (let i = 0; i < crossings.length - 1; i++) {
+    const entry = crossings[i];
+    const exit = crossings[i + 1];
+    intervals.push({
+      rashiIndex: entry.toSign,
+      rashiId: ZODIAC_IDS[entry.toSign],
+      startDate: new Date(entry.ms),
+      endDate: new Date(exit.ms),
+      isRetrogradeEntry: entry.isRetrograde,
+      isRetrogradeExit: exit.isRetrograde,
+    });
+  }
+
+  if (saturnTransitCache.size > 32) {
+    saturnTransitCache.clear();
+  }
+  saturnTransitCache.set(cacheKey, intervals);
+  return intervals;
+}
+
+/**
+ * Groups filtered Saturn transit intervals belonging to the same ~29.5-year passage
+ * (intervals separated by < 2 years belong to the same passage across retrograde loops).
+ */
+function groupTransitPassages(intervals: SaturnTransitInterval[]): SaturnTransitInterval[][] {
+  const passages: SaturnTransitInterval[][] = [];
+  const maxRetroGapMs = 2 * GREGORIAN_YEAR_MS;
+
+  for (const iv of intervals) {
+    const current = passages[passages.length - 1];
+    if (current) {
+      const prev = current[current.length - 1];
+      if (iv.startDate.getTime() - prev.endDate.getTime() < maxRetroGapMs) {
+        current.push(iv);
+        continue;
+      }
+    }
+    passages.push([iv]);
+  }
+  return passages;
+}
+
+/**
+ * Selects the currently active passage (even during a brief retrograde breather inside the cycle)
+ * or else the nearest upcoming passage relative to refMs.
+ */
+function selectActiveOrUpcomingPassage(
+  passages: SaturnTransitInterval[][],
+  refMs: number,
+): SaturnTransitInterval[] {
+  if (passages.length === 0) return [];
+  const active = passages.find((group) => {
+    const firstStart = group[0].startDate.getTime();
+    const lastEnd = group[group.length - 1].endDate.getTime();
+    return refMs >= firstStart && refMs < lastEnd;
+  });
+  if (active) return active;
+
+  const upcoming = passages.find((group) => group[group.length - 1].endDate.getTime() > refMs);
+  return upcoming ?? passages[passages.length - 1];
+}
 
 export function computeSadeSati(input: BirthInput, referenceDate: Date = new Date()): SadeSatiResult {
   const kundli = computeKundli(input, referenceDate);
@@ -1375,58 +1531,71 @@ export function computeSadeSati(input: BirthInput, referenceDate: Date = new Dat
   else if ([3, 7, 10].includes(moonFromSaturn)) paya = 'copper';
   else paya = 'iron';
 
-  // Scan ±15 years around referenceDate in 30-day steps to locate actual Sade Sati 12th/1st/2nd house spans
+  // Compute exact Saturn sign crossings over [refYear - 14, refYear + 36] so every active
+  // or upcoming Sade Sati cycle (7.5 yrs) and Shani Dhaiya passage (2.5 yrs) is fully bounded.
+  const refYear = referenceDate.getUTCFullYear();
+  const scanStart = new Date(Date.UTC(refYear - 14, 0, 1, 0, 0, 0));
+  const scanEnd = new Date(Date.UTC(refYear + 36, 0, 1, 0, 0, 0));
+  const allSaturnTransits = computeSaturnTransits(scanStart, scanEnd);
+  const refMs = referenceDate.getTime();
+
+  // 1) Sade Sati (12th = Rising, 1st = Peak, 2nd = Setting from natal Moon)
   const risingSign = (natalMoon + 11) % 12;
   const peakSign = natalMoon;
   const settingSign = (natalMoon + 1) % 12;
-  const targetSigns = [
-    { phase: 'rising' as const, sign: risingSign },
-    { phase: 'peak' as const, sign: peakSign },
-    { phase: 'setting' as const, sign: settingSign },
+
+  const sadeSatiMatching = allSaturnTransits.filter(
+    (iv) => iv.rashiIndex === risingSign || iv.rashiIndex === peakSign || iv.rashiIndex === settingSign,
+  );
+  const sadeSatiCycles = groupTransitPassages(sadeSatiMatching);
+  const chosenCycle = selectActiveOrUpcomingPassage(sadeSatiCycles, refMs);
+
+  const seenSadeSatiSigns = new Set<number>();
+  const windows: SadeSatiWindow[] = chosenCycle.map((iv) => {
+    const phase: SadeSatiWindow['phase'] =
+      iv.rashiIndex === risingSign ? 'rising' : iv.rashiIndex === peakSign ? 'peak' : 'setting';
+    const isReentry = seenSadeSatiSigns.has(iv.rashiIndex);
+    seenSadeSatiSigns.add(iv.rashiIndex);
+    return {
+      phase,
+      saturnRashiIndex: iv.rashiIndex,
+      startDate: iv.startDate,
+      endDate: iv.endDate,
+      isCurrent: refMs >= iv.startDate.getTime() && refMs < iv.endDate.getTime(),
+      isRetrogradeEntry: iv.isRetrogradeEntry,
+      isReentry,
+    };
+  });
+
+  const sadeSatiStartDate = windows.length > 0 ? windows[0].startDate : null;
+  const sadeSatiEndDate = windows.length > 0 ? windows[windows.length - 1].endDate : null;
+
+  // 2) Shani Dhaiya (4th = Kantaka/Ardha-Ashtama Shani, 8th = Ashtama Shani) using the exact same transit engine
+  const dhaiya4Sign = (natalMoon + 3) % 12;
+  const dhaiya8Sign = (natalMoon + 7) % 12;
+  const dhaiyaTargets: Array<{ type: ShaniDhaiyaWindow['type']; sign: number }> = [
+    { type: 'dhaiya_4', sign: dhaiya4Sign },
+    { type: 'dhaiya_8', sign: dhaiya8Sign },
   ];
 
-  // Find nearest cycle by scanning -10 years to +22 years from referenceDate
-  const stepMs = 20 * 86_400_000;
-  const scanStartMs = referenceDate.getTime() - 10 * GREGORIAN_YEAR_MS;
-  const scanEndMs = referenceDate.getTime() + 22 * GREGORIAN_YEAR_MS;
-  const samples: Array<{ ms: number; sign: number }> = [];
-  for (let ms = scanStartMs; ms <= scanEndMs; ms += stepMs) {
-    const lon = getSiderealLongitude('saturn', new Date(ms));
-    samples.push({ ms, sign: Math.floor(lon / 30) });
-  }
-
-  const windows: SadeSatiWindow[] = [];
-  const refMs = referenceDate.getTime();
-
-  for (const target of targetSigns) {
-    // Group contiguous (allowing brief retrograde dips within 180 days) visits to target.sign
-    const segments: Array<{ startMs: number; endMs: number }> = [];
-    for (const s of samples) {
-      if (s.sign === target.sign) {
-        const last = segments[segments.length - 1];
-        if (last && s.ms - last.endMs <= 210 * 86_400_000) {
-          last.endMs = s.ms;
-        } else {
-          segments.push({ startMs: s.ms, endMs: s.ms });
-        }
-      }
-    }
-    // Choose the active segment or nearest upcoming (or most recent if none upcoming)
-    const chosen =
-      segments.find((seg) => refMs >= seg.startMs && refMs <= seg.endMs) ??
-      segments.find((seg) => seg.endMs >= refMs) ??
-      segments[segments.length - 1];
-
-    if (chosen) {
-      windows.push({
-        phase: target.phase,
-        saturnRashiIndex: target.sign,
-        startDate: new Date(chosen.startMs),
-        endDate: new Date(chosen.endMs),
-        isCurrent: refMs >= chosen.startMs && refMs <= chosen.endMs && currentSaturnRashiIndex === target.sign,
+  const dhaiyaWindows: ShaniDhaiyaWindow[] = [];
+  for (const target of dhaiyaTargets) {
+    const matching = allSaturnTransits.filter((iv) => iv.rashiIndex === target.sign);
+    const passages = groupTransitPassages(matching);
+    const chosen = selectActiveOrUpcomingPassage(passages, refMs);
+    chosen.forEach((iv, idx) => {
+      dhaiyaWindows.push({
+        type: target.type,
+        saturnRashiIndex: iv.rashiIndex,
+        startDate: iv.startDate,
+        endDate: iv.endDate,
+        isCurrent: refMs >= iv.startDate.getTime() && refMs < iv.endDate.getTime(),
+        isRetrogradeEntry: iv.isRetrogradeEntry,
+        isReentry: idx > 0,
       });
-    }
+    });
   }
+  dhaiyaWindows.sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
   return {
     natalMoonRashiIndex: natalMoon,
@@ -1438,7 +1607,10 @@ export function computeSadeSati(input: BirthInput, referenceDate: Date = new Dat
     houseFromMoon,
     status,
     paya,
+    sadeSatiStartDate,
+    sadeSatiEndDate,
     windows,
+    dhaiyaWindows,
   };
 }
 

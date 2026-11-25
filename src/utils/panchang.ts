@@ -477,6 +477,69 @@ export function formatShortDate(
   return `${day} ${month} ${year}`;
 }
 
+/**
+ * Resolves the exact civil calendar date (YYYY-MM-DD) for a UTC instant in either an IANA timezone
+ * (automatically handling DST such as UK BST / US EDT) or a fixed UTC offset in minutes.
+ */
+export function getTimeZoneDateIso(
+  utcDate: Date,
+  ianaTimeZone?: string | null,
+  fallbackOffsetMinutes: number = 0,
+): string {
+  if (ianaTimeZone) {
+    try {
+      const parts = Object.fromEntries(
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: ianaTimeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })
+          .formatToParts(utcDate)
+          .map((p) => [p.type, p.value]),
+      );
+      if (parts.year && parts.month && parts.day) {
+        return `${parts.year}-${parts.month}-${parts.day}`;
+      }
+    } catch {
+      // Fall back to fixed UTC offset below
+    }
+  }
+  const shifted = new Date(utcDate.getTime() + fallbackOffsetMinutes * 60_000);
+  const y = String(shifted.getUTCFullYear()).padStart(4, '0');
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Formats a UTC instant into a localized DD Month YYYY string in the selected birthplace timezone.
+ */
+export function formatDateInTimeZone(
+  utcDate: Date,
+  lang: Language,
+  ianaTimeZone?: string | null,
+  fallbackOffsetMinutes: number = 0,
+): string {
+  const iso = getTimeZoneDateIso(utcDate, ianaTimeZone, fallbackOffsetMinutes);
+  const [yStr, mStr, dStr] = iso.split('-');
+  const day = localizeDigits(Number(dStr), lang);
+  const month = MONTHS[lang][Math.max(0, Math.min(11, Number(mStr) - 1))];
+  const year = localizeDigits(Number(yStr), lang);
+  return `${day} ${month} ${year}`;
+}
+
+/**
+ * Formats a fixed UTC offset in minutes into a concise label such as "UTC+05:30" or "UTC-05:00".
+ */
+export function formatUtcOffsetLabel(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(Math.round(offsetMinutes));
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `UTC${sign}${hh}:${mm}`;
+}
+
 export function formatTimeRange(
   start: Date | null,
   end: Date | null,
