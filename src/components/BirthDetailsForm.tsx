@@ -6,8 +6,10 @@ import { CALC_UI } from '../i18n/vedicLabels';
 import { type PanchangCityId } from '../utils/panchang';
 import {
   BIRTHPLACE_UI,
+  assertBirthplaceMatchesCalculation,
   createCustomBirthplace,
   createPresetBirthplace,
+  hasBirthplaceChanged,
   validateBirthplaceSelection,
   type BirthplaceSelection,
   type BirthplaceValidationResult,
@@ -109,6 +111,98 @@ export function validateBirthFormState(
   return result;
 }
 
+export interface ValidatedCalculationPayload {
+  form: BirthFormState;
+  selection: BirthplaceSelection;
+  resolved: ResolvedBirthplace;
+  input: BirthInput;
+}
+
+/**
+ * Validates a submitted BirthFormState and builds a strictly matched calculation payload.
+ * - Returns `null` if `state` is null, date is missing, or custom coordinates/timezone are invalid.
+ * - Verifies that `input.lat`, `input.lon`, and `input.utcOffsetMinutes` exactly match
+ *   `resolved` and `state.birthplace` (NEVER falling back to Guwahati or another preset city).
+ */
+export function buildValidatedCalculationPayload(
+  state: BirthFormState | null,
+  language: Language = 'en',
+): ValidatedCalculationPayload | null {
+  if (!state || !state.dateStr.trim()) {
+    return null;
+  }
+  const validation = validateBirthFormState(state, language);
+  if (!validation.valid || !validation.resolved) {
+    return null;
+  }
+  const { resolved } = validation;
+  const input: BirthInput = {
+    name: state.name.trim(),
+    dateStr: state.dateStr,
+    timeStr: state.timeStr || '08:30',
+    lat: resolved.lat,
+    lon: resolved.lon,
+    utcOffsetMinutes: resolved.utcOffsetMinutes,
+  };
+  if (!assertBirthplaceMatchesCalculation(state.birthplace, resolved, input)) {
+    return null;
+  }
+  return {
+    form: state,
+    selection: state.birthplace,
+    resolved,
+    input,
+  };
+}
+
+/**
+ * Immediately clears previously calculated results (`null`) whenever the user changes
+ * the birthplace selection (mode, preset city, or any custom location/coordinate/timezone field).
+ */
+export function reconcileSubmittedFormOnChange(
+  prevForm: BirthFormState,
+  nextForm: BirthFormState,
+  currentSubmitted: BirthFormState | null,
+): BirthFormState | null {
+  if (hasBirthplaceChanged(prevForm.birthplace, nextForm.birthplace)) {
+    return null;
+  }
+  if (
+    currentSubmitted !== null &&
+    hasBirthplaceChanged(currentSubmitted.birthplace, nextForm.birthplace)
+  ) {
+    return null;
+  }
+  return currentSubmitted;
+}
+
+/**
+ * Immediately clears previously calculated Kundli Matching results (`null`) whenever
+ * either Partner A or Partner B changes their birthplace selection.
+ */
+export function reconcileSubmittedPairOnChange(
+  prevA: BirthFormState,
+  nextA: BirthFormState,
+  prevB: BirthFormState,
+  nextB: BirthFormState,
+  currentSubmitted: { a: BirthFormState; b: BirthFormState } | null,
+): { a: BirthFormState; b: BirthFormState } | null {
+  if (
+    hasBirthplaceChanged(prevA.birthplace, nextA.birthplace) ||
+    hasBirthplaceChanged(prevB.birthplace, nextB.birthplace)
+  ) {
+    return null;
+  }
+  if (
+    currentSubmitted !== null &&
+    (hasBirthplaceChanged(currentSubmitted.a.birthplace, nextA.birthplace) ||
+      hasBirthplaceChanged(currentSubmitted.b.birthplace, nextB.birthplace))
+  ) {
+    return null;
+  }
+  return currentSubmitted;
+}
+
 /**
  * Converts a validated BirthFormState into a BirthInput for astronomical calculations.
  * Returns `null` if a custom birthplace has missing or invalid coordinates—NEVER silently
@@ -117,21 +211,13 @@ export function validateBirthFormState(
 export function formStateToBirthInputOrNull(
   state: BirthFormState,
 ): { input: BirthInput; resolved: ResolvedBirthplace } | null {
-  const validation = validateBirthFormState(state, 'en');
-  if (!validation.valid || !validation.resolved) {
+  const payload = buildValidatedCalculationPayload(state, 'en');
+  if (!payload) {
     return null;
   }
-  const { resolved } = validation;
   return {
-    resolved,
-    input: {
-      name: state.name.trim(),
-      dateStr: state.dateStr || '1996-05-15',
-      timeStr: state.timeStr || '08:30',
-      lat: resolved.lat,
-      lon: resolved.lon,
-      utcOffsetMinutes: resolved.utcOffsetMinutes,
-    },
+    resolved: payload.resolved,
+    input: payload.input,
   };
 }
 

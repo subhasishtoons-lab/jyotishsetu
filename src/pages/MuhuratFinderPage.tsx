@@ -11,6 +11,7 @@ import {
 } from '../utils/panchang';
 import {
   BIRTHPLACE_UI,
+  assertBirthplaceMatchesCalculation,
   createPresetBirthplace,
   validateBirthplaceSelection,
   type BirthplaceSelection,
@@ -63,6 +64,15 @@ export function MuhuratFinderPage() {
 
   const panchang = useMemo(() => {
     if (!resolvedLocation) return null;
+    if (
+      !assertBirthplaceMatchesCalculation(locationSelection, resolvedLocation, {
+        lat: resolvedLocation.lat,
+        lon: resolvedLocation.lon,
+        utcOffsetMinutes: resolvedLocation.utcOffsetMinutes,
+      })
+    ) {
+      return null;
+    }
     return computeLivePanchang(
       parsedParts.year,
       parsedParts.month,
@@ -71,7 +81,7 @@ export function MuhuratFinderPage() {
       resolvedLocation.lon,
       resolvedLocation.utcOffsetMinutes,
     );
-  }, [parsedParts, resolvedLocation]);
+  }, [parsedParts, locationSelection, resolvedLocation]);
 
   const formattedDate = useMemo(
     () =>

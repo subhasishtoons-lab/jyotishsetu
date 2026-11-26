@@ -15,11 +15,14 @@ import {
 } from '../i18n/vedicLabels';
 import {
   BirthDetailsForm,
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
-  formStateToBirthInput,
+  reconcileSubmittedFormOnChange,
   validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BirthplaceResultGuard } from '../components/BirthplaceResultGuard';
+import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
 
@@ -120,28 +123,53 @@ export function SadeSatiPage() {
   const { language } = useLanguage();
   const ui = CALC_UI[language];
   const copy = COPY[language];
+  const bpUi = BIRTHPLACE_UI[language];
 
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1994-08-22', timeStr: '10:15', cityId: 'guwahati' }),
   );
-  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState | null>(form);
 
-  const submittedPlace = useMemo(
-    () => validateBirthFormState(submittedForm, language).resolved,
+  const handleFormChange = (next: BirthFormState) => {
+    setForm(next);
+    setSubmittedForm((prev) => reconcileSubmittedFormOnChange(form, next, prev));
+  };
+
+  const handleFormSubmit = () => {
+    const payload = buildValidatedCalculationPayload(form, language);
+    setSubmittedForm(payload ? form : null);
+  };
+
+  const draftValidation = useMemo(
+    () => validateBirthFormState(form, language),
+    [form, language],
+  );
+
+  const calcPayload = useMemo(
+    () => buildValidatedCalculationPayload(submittedForm, language),
     [submittedForm, language],
   );
-  const submittedInput = useMemo(() => formStateToBirthInput(submittedForm), [submittedForm]);
-  const ianaTimeZone = submittedPlace?.ianaTimeZone ?? null;
-  const timezoneBadge = submittedPlace
-    ? `${submittedPlace.displayName} · ${submittedPlace.timezoneLabel}`
-    : formatUtcOffsetLabel(submittedInput.utcOffsetMinutes);
+
+  const result = useMemo(
+    () => (calcPayload ? computeSadeSati(calcPayload.input) : null),
+    [calcPayload],
+  );
+
+  const ianaTimeZone = calcPayload?.resolved.ianaTimeZone ?? null;
+  const timezoneBadge = calcPayload
+    ? `${calcPayload.resolved.displayName} · ${calcPayload.resolved.timezoneLabel}`
+    : formatUtcOffsetLabel(0);
 
   const formatTransitDate = (utcDate: Date) =>
-    formatDateInTimeZone(utcDate, language, ianaTimeZone, submittedInput.utcOffsetMinutes);
+    formatDateInTimeZone(
+      utcDate,
+      language,
+      ianaTimeZone,
+      calcPayload?.input.utcOffsetMinutes ?? 0,
+    );
 
-  const result = useMemo(() => computeSadeSati(submittedInput), [submittedInput]);
-  const isActive = result.status !== 'none';
-  const payaInfo = PAYA_NAMES[language][result.paya];
+  const isActive = result !== null && result.status !== 'none';
+  const payaInfo = result ? PAYA_NAMES[language][result.paya] : null;
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -169,14 +197,20 @@ export function SadeSatiPage() {
               idPrefix="sadesati"
               title={copy.formTitle}
               value={form}
-              onChange={setForm}
-              onSubmit={() => setSubmittedForm(form)}
+              onChange={handleFormChange}
+              onSubmit={handleFormSubmit}
               submitLabel={copy.submitBtn}
               showName={false}
             />
           </div>
 
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6" data-testid="sadesati-results">
+            {!calcPayload || !result || !payaInfo ? (
+              <BirthplaceResultGuard
+                entries={[{ selection: form.birthplace, validation: draftValidation }]}
+              />
+            ) : (
+              <>
             {/* Primary Status Banner */}
             <div
               className={`p-6 rounded-lg border ${
@@ -199,7 +233,7 @@ export function SadeSatiPage() {
                     <ShieldCheck className="w-5 h-5" aria-hidden="true" />
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p
                     className={`text-xs font-semibold tracking-wider ${
                       isActive ? 'text-[#EBD08D]' : 'text-[#2B5A3C]'
@@ -210,6 +244,28 @@ export function SadeSatiPage() {
                   <h2 className="mt-1 font-display text-2xl font-semibold">
                     {ui.sadeSatiStatusTitles[result.status]}
                   </h2>
+                  <p
+                    data-testid="sadesati-result-birthplace"
+                    className={`mt-2 text-xs flex flex-wrap items-center gap-x-2 gap-y-1 ${
+                      isActive ? 'text-[#EBD08D]/90' : 'text-[#542D24]'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                        isActive
+                          ? 'bg-[#24090E] border-[#D8AD59]/40 text-[#EBD08D]'
+                          : 'bg-[#EFE3CE] border-[#D8AD59]/50 text-[#351016]'
+                      }`}
+                    >
+                      {calcPayload.resolved.mode === 'custom'
+                        ? bpUi.customBadge
+                        : bpUi.presetBadge}
+                    </span>
+                    <span className="font-medium">{calcPayload.resolved.displayName}</span>
+                    <span className="font-mono tabular-nums opacity-90">
+                      · {calcPayload.resolved.coordinatesLabel} · {calcPayload.resolved.timezoneLabel}
+                    </span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -431,6 +487,8 @@ export function SadeSatiPage() {
                 <ArrowRight className="w-4 h-4 text-[#D8AD59]" aria-hidden="true" />
               </Link>
             </div>
+              </>
+            )}
           </div>
         </div>
       </section>

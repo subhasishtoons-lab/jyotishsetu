@@ -6,11 +6,13 @@ import { localizeDigits } from '../utils/panchang';
 import { CALC_UI, RASHI_NAMES } from '../i18n/vedicLabels';
 import {
   BirthDetailsForm,
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
-  formStateToBirthInput,
+  reconcileSubmittedFormOnChange,
   validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BirthplaceResultGuard } from '../components/BirthplaceResultGuard';
 import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
@@ -78,40 +80,67 @@ export function MangalDoshaPage() {
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1996-05-15', timeStr: '08:30', cityId: 'guwahati' }),
   );
-  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState | null>(form);
 
-  const submittedBirthplace = useMemo(
-    () => validateBirthFormState(submittedForm, language).resolved,
+  const handleFormChange = (next: BirthFormState) => {
+    setForm(next);
+    setSubmittedForm((prev) => reconcileSubmittedFormOnChange(form, next, prev));
+  };
+
+  const handleFormSubmit = () => {
+    const payload = buildValidatedCalculationPayload(form, language);
+    setSubmittedForm(payload ? form : null);
+  };
+
+  const draftValidation = useMemo(
+    () => validateBirthFormState(form, language),
+    [form, language],
+  );
+
+  const calcPayload = useMemo(
+    () => buildValidatedCalculationPayload(submittedForm, language),
     [submittedForm, language],
   );
 
-  const { kundli, result } = useMemo(() => {
-    const k = computeKundli(formStateToBirthInput(submittedForm));
-    return { kundli: k, result: evaluateMangalDoshaFromKundli(k) };
-  }, [submittedForm]);
+  const computed = useMemo(() => {
+    if (!calcPayload) return null;
+    const kundli = computeKundli(calcPayload.input);
+    return {
+      kundli,
+      result: evaluateMangalDoshaFromKundli(kundli),
+      resolved: calcPayload.resolved,
+    };
+  }, [calcPayload]);
 
-  const isSevere = result.severity === 'present' || result.severity === 'partial';
+  const isSevere =
+    computed !== null &&
+    (computed.result.severity === 'present' || computed.result.severity === 'partial');
 
-  const houseCards = [
-    {
-      label: copy.fromLagna,
-      refSign: RASHI_NAMES[language][kundli.ascendantRashiIndex],
-      house: result.fromLagnaHouse,
-      hasDosha: result.fromLagnaDosha,
-    },
-    {
-      label: copy.fromMoon,
-      refSign: RASHI_NAMES[language][kundli.moonRashiIndex],
-      house: result.fromMoonHouse,
-      hasDosha: result.fromMoonDosha,
-    },
-    {
-      label: copy.fromVenus,
-      refSign: RASHI_NAMES[language][kundli.planets.find((p) => p.id === 'venus')!.rashiIndex],
-      house: result.fromVenusHouse,
-      hasDosha: result.fromVenusDosha,
-    },
-  ];
+  const houseCards = computed
+    ? [
+        {
+          label: copy.fromLagna,
+          refSign: RASHI_NAMES[language][computed.kundli.ascendantRashiIndex],
+          house: computed.result.fromLagnaHouse,
+          hasDosha: computed.result.fromLagnaDosha,
+        },
+        {
+          label: copy.fromMoon,
+          refSign: RASHI_NAMES[language][computed.kundli.moonRashiIndex],
+          house: computed.result.fromMoonHouse,
+          hasDosha: computed.result.fromMoonDosha,
+        },
+        {
+          label: copy.fromVenus,
+          refSign:
+            RASHI_NAMES[language][
+              computed.kundli.planets.find((p) => p.id === 'venus')!.rashiIndex
+            ],
+          house: computed.result.fromVenusHouse,
+          hasDosha: computed.result.fromVenusDosha,
+        },
+      ]
+    : [];
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -139,138 +168,145 @@ export function MangalDoshaPage() {
               idPrefix="mangal"
               title={copy.formTitle}
               value={form}
-              onChange={setForm}
-              onSubmit={() => setSubmittedForm(form)}
+              onChange={handleFormChange}
+              onSubmit={handleFormSubmit}
               submitLabel={copy.submitBtn}
               showName={false}
             />
           </div>
 
-          <div className="lg:col-span-8 space-y-6">
-            {/* Result Verdict Card */}
-            <div
-              className={`p-6 rounded-lg border ${
-                isSevere
-                  ? 'bg-[#351016] text-[#F8F0E3] border-[#D8AD59]/50'
-                  : 'bg-[#FDF9F2] text-[#351016] border-[#2B5A3C]/40'
-              }`}
-            >
-              <div className="flex items-start gap-4">
+          <div className="lg:col-span-8 space-y-6" data-testid="mangal-results">
+            {!computed ? (
+              <BirthplaceResultGuard
+                entries={[{ selection: form.birthplace, validation: draftValidation }]}
+              />
+            ) : (
+              <>
+                {/* Result Verdict Card */}
                 <div
-                  className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
+                  className={`p-6 rounded-lg border ${
                     isSevere
-                      ? 'bg-[#E99A32]/20 text-[#E99A32] border border-[#E99A32]/40'
-                      : 'bg-[#2B5A3C]/12 text-[#2B5A3C] border border-[#2B5A3C]/30'
+                      ? 'bg-[#351016] text-[#F8F0E3] border-[#D8AD59]/50'
+                      : 'bg-[#FDF9F2] text-[#351016] border-[#2B5A3C]/40'
                   }`}
                 >
-                  {isSevere ? (
-                    <AlertTriangle className="w-5 h-5" aria-hidden="true" />
-                  ) : (
-                    <ShieldCheck className="w-5 h-5" aria-hidden="true" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p
-                    className={`text-xs font-semibold tracking-wider ${
-                      isSevere ? 'text-[#EBD08D]' : 'text-[#2B5A3C]'
-                    }`}
-                  >
-                    {copy.marsPlacement}: {RASHI_NAMES[language][result.marsRashiIndex]} (
-                    {localizeDigits(formatDMS(result.marsDegree), language)})
-                  </p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold">
-                    {ui.mangalSeverityTitles[result.severity]}
-                  </h2>
-                  {submittedBirthplace && (
-                    <p
-                      className={`mt-2 text-xs flex flex-wrap items-center gap-x-2 gap-y-1 ${
-                        isSevere ? 'text-[#EBD08D]/90' : 'text-[#542D24]'
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${
+                        isSevere
+                          ? 'bg-[#E99A32]/20 text-[#E99A32] border border-[#E99A32]/40'
+                          : 'bg-[#2B5A3C]/12 text-[#2B5A3C] border border-[#2B5A3C]/30'
                       }`}
                     >
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${
-                          isSevere
-                            ? 'bg-[#24090E] border-[#D8AD59]/40 text-[#EBD08D]'
-                            : 'bg-[#EFE3CE] border-[#D8AD59]/50 text-[#351016]'
+                      {isSevere ? (
+                        <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                      ) : (
+                        <ShieldCheck className="w-5 h-5" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p
+                        className={`text-xs font-semibold tracking-wider ${
+                          isSevere ? 'text-[#EBD08D]' : 'text-[#2B5A3C]'
                         }`}
                       >
-                        {submittedBirthplace.mode === 'custom'
-                          ? bpUi.customBadge
-                          : bpUi.presetBadge}
-                      </span>
-                      <span className="font-medium">{submittedBirthplace.displayName}</span>
-                      <span className="font-mono tabular-nums opacity-90">
-                        · {submittedBirthplace.coordinatesLabel} · {submittedBirthplace.timezoneLabel}
-                      </span>
+                        {copy.marsPlacement}: {RASHI_NAMES[language][computed.result.marsRashiIndex]} (
+                        {localizeDigits(formatDMS(computed.result.marsDegree), language)})
+                      </p>
+                      <h2 className="mt-1 font-display text-2xl font-semibold">
+                        {ui.mangalSeverityTitles[computed.result.severity]}
+                      </h2>
+                      <p
+                        data-testid="mangal-result-birthplace"
+                        className={`mt-2 text-xs flex flex-wrap items-center gap-x-2 gap-y-1 ${
+                          isSevere ? 'text-[#EBD08D]/90' : 'text-[#542D24]'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded border text-[10px] font-semibold ${
+                            isSevere
+                              ? 'bg-[#24090E] border-[#D8AD59]/40 text-[#EBD08D]'
+                              : 'bg-[#EFE3CE] border-[#D8AD59]/50 text-[#351016]'
+                          }`}
+                        >
+                          {computed.resolved.mode === 'custom'
+                            ? bpUi.customBadge
+                            : bpUi.presetBadge}
+                        </span>
+                        <span className="font-medium">{computed.resolved.displayName}</span>
+                        <span className="font-mono tabular-nums opacity-90">
+                          · {computed.resolved.coordinatesLabel} · {computed.resolved.timezoneLabel}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3 Reference Point Evaluations (Lagna, Moon, Venus) */}
+                <div>
+                  <p className="text-xs font-medium text-[#8C5320] mb-3">{copy.doshaHousesNote}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {houseCards.map((card) => (
+                      <div
+                        key={card.label}
+                        className="p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35"
+                      >
+                        <p className="text-xs font-semibold text-[#8C5320]">{card.label}</p>
+                        <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-[#351016]">
+                          {ui.houseShort} {localizeDigits(card.house, language)}
+                        </p>
+                        <p className="mt-1 text-xs text-[#542D24]">{card.refSign}</p>
+                        <p
+                          className={`mt-3 text-xs font-semibold ${
+                            card.hasDosha ? 'text-[#9A3412]' : 'text-[#2B5A3C]'
+                          }`}
+                        >
+                          {card.hasDosha ? ui.presentLabel : ui.absentLabel}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Classical Parihara Cancellations */}
+                <div className="p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
+                  <h3 className="font-display text-xl font-semibold text-[#351016]">
+                    {copy.cancellationsTitle}
+                  </h3>
+
+                  {computed.result.cancellations.length > 0 ? (
+                    <ul className="mt-4 space-y-3">
+                      {computed.result.cancellations.map((code) => (
+                        <li
+                          key={code}
+                          className="flex items-start gap-2.5 text-sm text-[#351016] bg-[#EFE3CE]/60 border border-[#D8AD59]/40 p-3.5 rounded-md"
+                        >
+                          <CheckCircle2
+                            className="w-4 h-4 text-[#2B5A3C] shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          <span>{ui.mangalCancellationText[code]}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2.5 text-sm text-[#542D24] leading-relaxed">
+                      {copy.noCancellations}
                     </p>
                   )}
-                </div>
-              </div>
-            </div>
 
-            {/* 3 Reference Point Evaluations (Lagna, Moon, Venus) */}
-            <div>
-              <p className="text-xs font-medium text-[#8C5320] mb-3">{copy.doshaHousesNote}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {houseCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className="p-5 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/35"
-                  >
-                    <p className="text-xs font-semibold text-[#8C5320]">{card.label}</p>
-                    <p className="mt-2 font-mono tabular-nums text-2xl font-semibold text-[#351016]">
-                      {ui.houseShort} {localizeDigits(card.house, language)}
-                    </p>
-                    <p className="mt-1 text-xs text-[#542D24]">{card.refSign}</p>
-                    <p
-                      className={`mt-3 text-xs font-semibold ${
-                        card.hasDosha ? 'text-[#9A3412]' : 'text-[#2B5A3C]'
-                      }`}
+                  <div className="mt-6 pt-5 border-t border-[#D8AD59]/25">
+                    <Link
+                      to="/matching"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-xs sm:text-sm font-semibold hover:bg-[#4A1820] transition-colors"
                     >
-                      {card.hasDosha ? ui.presentLabel : ui.absentLabel}
-                    </p>
+                      <span>{copy.matchingCta}</span>
+                      <ArrowRight className="w-4 h-4 text-[#D8AD59]" aria-hidden="true" />
+                    </Link>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Classical Parihara Cancellations */}
-            <div className="p-6 rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40">
-              <h3 className="font-display text-xl font-semibold text-[#351016]">
-                {copy.cancellationsTitle}
-              </h3>
-
-              {result.cancellations.length > 0 ? (
-                <ul className="mt-4 space-y-3">
-                  {result.cancellations.map((code) => (
-                    <li
-                      key={code}
-                      className="flex items-start gap-2.5 text-sm text-[#351016] bg-[#EFE3CE]/60 border border-[#D8AD59]/40 p-3.5 rounded-md"
-                    >
-                      <CheckCircle2
-                        className="w-4 h-4 text-[#2B5A3C] shrink-0 mt-0.5"
-                        aria-hidden="true"
-                      />
-                      <span>{ui.mangalCancellationText[code]}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2.5 text-sm text-[#542D24] leading-relaxed">
-                  {copy.noCancellations}
-                </p>
-              )}
-
-              <div className="mt-6 pt-5 border-t border-[#D8AD59]/25">
-                <Link
-                  to="/matching"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-[#351016] text-[#F8F0E3] text-xs sm:text-sm font-semibold hover:bg-[#4A1820] transition-colors"
-                >
-                  <span>{copy.matchingCta}</span>
-                  <ArrowRight className="w-4 h-4 text-[#D8AD59]" aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -18,11 +18,13 @@ import {
 } from '../i18n/vedicLabels';
 import {
   BirthDetailsForm,
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
-  formStateToBirthInput,
+  reconcileSubmittedFormOnChange,
   validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BirthplaceResultGuard } from '../components/BirthplaceResultGuard';
 import { BIRTHPLACE_UI } from '../utils/birthplace';
 import { SectionHeading } from '../components/SectionHeading';
 import { Link } from '../components/Link';
@@ -108,30 +110,47 @@ export function NakshatraFinderPage() {
   const [form, setForm] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ dateStr: '1996-05-15', timeStr: '08:30', cityId: 'guwahati' }),
   );
-  const [submittedForm, setSubmittedForm] = useState<BirthFormState>(form);
+  const [submittedForm, setSubmittedForm] = useState<BirthFormState | null>(form);
 
-  const submittedBirthplace = useMemo(
-    () => validateBirthFormState(submittedForm, language).resolved,
+  const handleFormChange = (next: BirthFormState) => {
+    setForm(next);
+    setSubmittedForm((prev) => reconcileSubmittedFormOnChange(form, next, prev));
+  };
+
+  const handleFormSubmit = () => {
+    const payload = buildValidatedCalculationPayload(form, language);
+    setSubmittedForm(payload ? form : null);
+  };
+
+  const draftValidation = useMemo(
+    () => validateBirthFormState(form, language),
+    [form, language],
+  );
+
+  const calcPayload = useMemo(
+    () => buildValidatedCalculationPayload(submittedForm, language),
     [submittedForm, language],
   );
 
   const result = useMemo(
-    () => computeNakshatraDetails(formStateToBirthInput(submittedForm)),
-    [submittedForm],
+    () => (calcPayload ? computeNakshatraDetails(calcPayload.input) : null),
+    [calcPayload],
   );
-  const syllables = NAKSHATRA_PADA_SYLLABLES[language][result.nakshatraIndex];
-  const activeSyllable = syllables[result.pada - 1];
+  const syllables = result ? NAKSHATRA_PADA_SYLLABLES[language][result.nakshatraIndex] : [];
+  const activeSyllable = result ? syllables[result.pada - 1] : '';
 
-  const attributes = [
-    { label: copy.rashiLabel, value: RASHI_NAMES[language][result.moonRashiIndex] },
-    { label: copy.rulerLabel, value: PLANET_NAMES[language][result.ruler] },
-    { label: copy.deityLabel, value: NAKSHATRA_DEITIES[language][result.nakshatraIndex] },
-    { label: copy.symbolLabel, value: NAKSHATRA_SYMBOLS[language][result.nakshatraIndex] },
-    { label: copy.ganaLabel, value: GANA_NAMES[language][result.gana] },
-    { label: copy.yoniLabel, value: YONI_NAMES[language][result.yoniIndex] },
-    { label: copy.nadiLabel, value: NADI_NAMES[language][result.nadi] },
-    { label: copy.varnaLabel, value: VARNA_NAMES[language][result.varna] },
-  ];
+  const attributes = result
+    ? [
+        { label: copy.rashiLabel, value: RASHI_NAMES[language][result.moonRashiIndex] },
+        { label: copy.rulerLabel, value: PLANET_NAMES[language][result.ruler] },
+        { label: copy.deityLabel, value: NAKSHATRA_DEITIES[language][result.nakshatraIndex] },
+        { label: copy.symbolLabel, value: NAKSHATRA_SYMBOLS[language][result.nakshatraIndex] },
+        { label: copy.ganaLabel, value: GANA_NAMES[language][result.gana] },
+        { label: copy.yoniLabel, value: YONI_NAMES[language][result.yoniIndex] },
+        { label: copy.nadiLabel, value: NADI_NAMES[language][result.nadi] },
+        { label: copy.varnaLabel, value: VARNA_NAMES[language][result.varna] },
+      ]
+    : [];
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -159,14 +178,20 @@ export function NakshatraFinderPage() {
               idPrefix="nakshatra"
               title={copy.formTitle}
               value={form}
-              onChange={setForm}
-              onSubmit={() => setSubmittedForm(form)}
+              onChange={handleFormChange}
+              onSubmit={handleFormSubmit}
               submitLabel={copy.submitBtn}
               showName={false}
             />
           </div>
 
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6" data-testid="nakshatra-results">
+            {!calcPayload || !result ? (
+              <BirthplaceResultGuard
+                entries={[{ selection: form.birthplace, validation: draftValidation }]}
+              />
+            ) : (
+              <>
             {/* Primary Nakshatra & Pada Highlight */}
             <div className="p-6 sm:p-8 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
               <div className="min-w-0">
@@ -181,21 +206,22 @@ export function NakshatraFinderPage() {
                   {localizeDigits(formatDMS(result.moonDegreeInSign), language)} (
                   {RASHI_NAMES[language][result.moonRashiIndex]})
                 </p>
-                {submittedBirthplace && (
-                  <p className="mt-2.5 text-xs text-[#EBD08D]/90 flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <span className="inline-block px-2 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/40 text-[10px] font-semibold text-[#EBD08D]">
-                      {submittedBirthplace.mode === 'custom'
-                        ? bpUi.customBadge
-                        : bpUi.presetBadge}
-                    </span>
-                    <span className="font-medium text-[#F8F0E3]">
-                      {submittedBirthplace.displayName}
-                    </span>
-                    <span className="font-mono tabular-nums text-[#EBD08D]/85">
-                      · {submittedBirthplace.coordinatesLabel} · {submittedBirthplace.timezoneLabel}
-                    </span>
-                  </p>
-                )}
+                <p
+                  data-testid="nakshatra-result-birthplace"
+                  className="mt-2.5 text-xs text-[#EBD08D]/90 flex flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  <span className="inline-block px-2 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/40 text-[10px] font-semibold text-[#EBD08D]">
+                    {calcPayload.resolved.mode === 'custom'
+                      ? bpUi.customBadge
+                      : bpUi.presetBadge}
+                  </span>
+                  <span className="font-medium text-[#F8F0E3]">
+                    {calcPayload.resolved.displayName}
+                  </span>
+                  <span className="font-mono tabular-nums text-[#EBD08D]/85">
+                    · {calcPayload.resolved.coordinatesLabel} · {calcPayload.resolved.timezoneLabel}
+                  </span>
+                </p>
               </div>
 
               <div className="px-5 py-4 rounded-lg bg-[#24090E] border border-[#D8AD59]/50 text-center shrink-0">
@@ -274,6 +300,8 @@ export function NakshatraFinderPage() {
                 <ArrowRight className="w-4 h-4 text-[#D8AD59]" aria-hidden="true" />
               </Link>
             </div>
+              </>
+            )}
           </div>
         </div>
       </section>

@@ -3,11 +3,13 @@ import { HeartHandshake, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-re
 import { useLanguage } from '../context/LanguageContext';
 import {
   BirthDetailsForm,
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
-  formStateToBirthInput,
+  reconcileSubmittedPairOnChange,
   validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BirthplaceResultGuard } from '../components/BirthplaceResultGuard';
 import {
   CALC_UI,
   KOOTA_LABELS,
@@ -30,40 +32,54 @@ export function KundliMatchingPage() {
   const [partnerB, setPartnerB] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ name: '', dateStr: '1996-11-04', timeStr: '14:40', cityId: 'guwahati' }),
   );
-  const [submittedPair, setSubmittedPair] = useState({ a: partnerA, b: partnerB });
+  const [submittedPair, setSubmittedPair] = useState<{
+    a: BirthFormState;
+    b: BirthFormState;
+  } | null>({ a: partnerA, b: partnerB });
   const [showValidation, setShowValidation] = useState(false);
+
+  const handlePartnerAChange = (nextA: BirthFormState) => {
+    setPartnerA(nextA);
+    setSubmittedPair((prev) =>
+      reconcileSubmittedPairOnChange(partnerA, nextA, partnerB, partnerB, prev),
+    );
+  };
+
+  const handlePartnerBChange = (nextB: BirthFormState) => {
+    setPartnerB(nextB);
+    setSubmittedPair((prev) =>
+      reconcileSubmittedPairOnChange(partnerA, partnerA, partnerB, nextB, prev),
+    );
+  };
 
   const validA = useMemo(() => validateBirthFormState(partnerA, language), [partnerA, language]);
   const validB = useMemo(() => validateBirthFormState(partnerB, language), [partnerB, language]);
 
-  const submittedPlaceA = useMemo(
-    () => validateBirthFormState(submittedPair.a, language).resolved,
-    [submittedPair.a, language],
-  );
-  const submittedPlaceB = useMemo(
-    () => validateBirthFormState(submittedPair.b, language).resolved,
-    [submittedPair.b, language],
-  );
-
-  const result = useMemo(
-    () =>
-      computeAshtakoota(
-        formStateToBirthInput(submittedPair.a),
-        formStateToBirthInput(submittedPair.b),
-      ),
-    [submittedPair],
-  );
+  const matchData = useMemo(() => {
+    if (!submittedPair) return null;
+    const payloadA = buildValidatedCalculationPayload(submittedPair.a, language);
+    const payloadB = buildValidatedCalculationPayload(submittedPair.b, language);
+    if (!payloadA || !payloadB) return null;
+    return {
+      payloadA,
+      payloadB,
+      result: computeAshtakoota(payloadA.input, payloadB.input),
+    };
+  }, [submittedPair, language]);
 
   const handleMatchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setShowValidation(true);
-    if (!validA.valid || !validB.valid) {
+    const payloadA = buildValidatedCalculationPayload(partnerA, language);
+    const payloadB = buildValidatedCalculationPayload(partnerB, language);
+    if (!payloadA || !payloadB) {
+      setSubmittedPair(null);
       return;
     }
     setSubmittedPair({ a: partnerA, b: partnerB });
   };
 
-  const scorePct = Math.round((result.totalScore / 36) * 100);
+  const scorePct = matchData ? Math.round((matchData.result.totalScore / 36) * 100) : 0;
 
   return (
     <div className="bg-[#F8F0E3]">
@@ -94,7 +110,7 @@ export function KundliMatchingPage() {
               idPrefix="match-a"
               title={ui.partnerA}
               value={partnerA}
-              onChange={setPartnerA}
+              onChange={handlePartnerAChange}
               showValidation={showValidation}
               compact
             />
@@ -102,7 +118,7 @@ export function KundliMatchingPage() {
               idPrefix="match-b"
               title={ui.partnerB}
               value={partnerB}
-              onChange={setPartnerB}
+              onChange={handlePartnerBChange}
               showValidation={showValidation}
               compact
             />
@@ -125,6 +141,16 @@ export function KundliMatchingPage() {
           </div>
         </form>
 
+        <div data-testid="matching-results" className="space-y-10">
+          {!matchData ? (
+            <BirthplaceResultGuard
+              entries={[
+                { label: ui.partnerA, selection: partnerA.birthplace, validation: validA },
+                { label: ui.partnerB, selection: partnerB.birthplace, validation: validB },
+              ]}
+            />
+          ) : (
+            <>
         {/* Score Overview Banner */}
         <div className="p-6 sm:p-8 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/40">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
@@ -134,14 +160,14 @@ export function KundliMatchingPage() {
               </p>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="font-display text-5xl font-semibold text-[#F5DC9B] tabular-nums">
-                  {localizeDigits(result.totalScore, language)}
+                  {localizeDigits(matchData.result.totalScore, language)}
                 </span>
                 <span className="text-xl text-[#D8AD59]/80 font-mono">
                   / {localizeDigits(36, language)}
                 </span>
               </div>
               <p className="mt-2 text-base font-semibold text-[#E99A32]">
-                {ui.verdicts[result.verdict]}
+                {ui.verdicts[matchData.result.verdict]}
               </p>
               <div className="mt-4 h-2.5 w-full rounded-full bg-[#24090E] overflow-hidden border border-[#D8AD59]/30">
                 <div
@@ -154,39 +180,57 @@ export function KundliMatchingPage() {
             <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
               <div className="p-4 rounded-md bg-[#24090E] border border-[#D8AD59]/30">
                 <p className="text-[#D8AD59] font-semibold">
-                  {submittedPair.a.name.trim() || ui.partnerA}
+                  {matchData.payloadA.form.name.trim() || ui.partnerA}
                 </p>
-                {submittedPlaceA && (
-                  <p className="mt-1 text-[11px] text-[#EBD08D]/85">
-                    {submittedPlaceA.displayName} ·{' '}
-                    <span className="font-mono">{submittedPlaceA.coordinatesLabel}</span>
-                  </p>
-                )}
+                <p
+                  data-testid="matching-result-birthplace-a"
+                  className="mt-1 text-[11px] text-[#EBD08D]/85 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+                >
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-[#351016] border border-[#D8AD59]/40 text-[10px] font-semibold text-[#F5DC9B]">
+                    {matchData.payloadA.resolved.mode === 'custom'
+                      ? bpUi.customBadge
+                      : bpUi.presetBadge}
+                  </span>
+                  <span>{matchData.payloadA.resolved.displayName}</span>
+                  <span className="font-mono">
+                    · {matchData.payloadA.resolved.coordinatesLabel} ·{' '}
+                    {matchData.payloadA.resolved.timezoneLabel}
+                  </span>
+                </p>
                 <p className="mt-1.5 text-[#F8F0E3]">
-                  {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][result.personA.moonRashiIndex]}</strong>
+                  {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][matchData.result.personA.moonRashiIndex]}</strong>
                 </p>
                 <p className="mt-1 text-[#F8F0E3]/80">
-                  {ui.birthNakshatraLabel}: {NAKSHATRA_NAMES[language][result.personA.moonNakshatraIndex]} (
-                  {localizeDigits(result.personA.moonPada, language)})
+                  {ui.birthNakshatraLabel}: {NAKSHATRA_NAMES[language][matchData.result.personA.moonNakshatraIndex]} (
+                  {localizeDigits(matchData.result.personA.moonPada, language)})
                 </p>
               </div>
 
               <div className="p-4 rounded-md bg-[#24090E] border border-[#D8AD59]/30">
                 <p className="text-[#D8AD59] font-semibold">
-                  {submittedPair.b.name.trim() || ui.partnerB}
+                  {matchData.payloadB.form.name.trim() || ui.partnerB}
                 </p>
-                {submittedPlaceB && (
-                  <p className="mt-1 text-[11px] text-[#EBD08D]/85">
-                    {submittedPlaceB.displayName} ·{' '}
-                    <span className="font-mono">{submittedPlaceB.coordinatesLabel}</span>
-                  </p>
-                )}
+                <p
+                  data-testid="matching-result-birthplace-b"
+                  className="mt-1 text-[11px] text-[#EBD08D]/85 flex flex-wrap items-center gap-x-1.5 gap-y-0.5"
+                >
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-[#351016] border border-[#D8AD59]/40 text-[10px] font-semibold text-[#F5DC9B]">
+                    {matchData.payloadB.resolved.mode === 'custom'
+                      ? bpUi.customBadge
+                      : bpUi.presetBadge}
+                  </span>
+                  <span>{matchData.payloadB.resolved.displayName}</span>
+                  <span className="font-mono">
+                    · {matchData.payloadB.resolved.coordinatesLabel} ·{' '}
+                    {matchData.payloadB.resolved.timezoneLabel}
+                  </span>
+                </p>
                 <p className="mt-1.5 text-[#F8F0E3]">
-                  {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][result.personB.moonRashiIndex]}</strong>
+                  {ui.moonSignLabel}: <strong>{RASHI_NAMES[language][matchData.result.personB.moonRashiIndex]}</strong>
                 </p>
                 <p className="mt-1 text-[#F8F0E3]/80">
-                  {ui.birthNakshatraLabel}: {NAKSHATRA_NAMES[language][result.personB.moonNakshatraIndex]} (
-                  {localizeDigits(result.personB.moonPada, language)})
+                  {ui.birthNakshatraLabel}: {NAKSHATRA_NAMES[language][matchData.result.personB.moonNakshatraIndex]} (
+                  {localizeDigits(matchData.result.personB.moonPada, language)})
                 </p>
               </div>
             </div>
@@ -200,7 +244,7 @@ export function KundliMatchingPage() {
               <h2 className="font-display text-lg font-semibold">{spec.highlightsTitle}</h2>
             </div>
             <div className="divide-y divide-[#D8AD59]/25">
-              {result.kootas.map((k) => {
+              {matchData.result.kootas.map((k) => {
                 const label = KOOTA_LABELS[language][k.key];
                 const pct = Math.round((k.score / k.max) * 100);
                 return (
@@ -238,16 +282,16 @@ export function KundliMatchingPage() {
               <div className="p-4 rounded-md bg-[#F8F0E3] border border-[#D8AD59]/35">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm text-[#351016]">{ui.nadiStatus}</span>
-                  {result.nadiDosha ? (
+                  {matchData.result.nadiDosha ? (
                     <AlertTriangle className="w-4 h-4 text-[#9A3412]" aria-hidden="true" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4 text-[#2B5A3C]" aria-hidden="true" />
                   )}
                 </div>
                 <p className="mt-1 text-xs text-[#542D24]">
-                  {!result.nadiDosha
+                  {!matchData.result.nadiDosha
                     ? ui.absentLabel
-                    : result.nadiParihara
+                    : matchData.result.nadiParihara
                       ? ui.cancelledLabel
                       : ui.presentLabel}
                 </p>
@@ -256,16 +300,16 @@ export function KundliMatchingPage() {
               <div className="p-4 rounded-md bg-[#F8F0E3] border border-[#D8AD59]/35">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm text-[#351016]">{ui.bhakootStatus}</span>
-                  {result.bhakootDosha ? (
+                  {matchData.result.bhakootDosha ? (
                     <AlertTriangle className="w-4 h-4 text-[#9A3412]" aria-hidden="true" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4 text-[#2B5A3C]" aria-hidden="true" />
                   )}
                 </div>
                 <p className="mt-1 text-xs text-[#542D24]">
-                  {!result.bhakootDosha
+                  {!matchData.result.bhakootDosha
                     ? ui.absentLabel
-                    : result.bhakootParihara
+                    : matchData.result.bhakootParihara
                       ? ui.cancelledLabel
                       : ui.presentLabel}
                 </p>
@@ -274,14 +318,14 @@ export function KundliMatchingPage() {
               <div className="p-4 rounded-md bg-[#F8F0E3] border border-[#D8AD59]/35">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm text-[#351016]">{ui.mangalMatchStatus}</span>
-                  {result.mangalCompatible ? (
+                  {matchData.result.mangalCompatible ? (
                     <CheckCircle2 className="w-4 h-4 text-[#2B5A3C]" aria-hidden="true" />
                   ) : (
                     <AlertTriangle className="w-4 h-4 text-[#9A3412]" aria-hidden="true" />
                   )}
                 </div>
                 <p className="mt-1 text-xs text-[#542D24]">
-                  {result.mangalCompatible ? ui.balancedLabel : ui.reviewLabel}
+                  {matchData.result.mangalCompatible ? ui.balancedLabel : ui.reviewLabel}
                 </p>
               </div>
             </div>
@@ -295,6 +339,9 @@ export function KundliMatchingPage() {
               </p>
             </div>
           </div>
+        </div>
+            </>
+          )}
         </div>
       </section>
     </div>

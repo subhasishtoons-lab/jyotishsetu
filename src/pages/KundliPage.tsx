@@ -3,11 +3,13 @@ import { Printer, Sparkles, Compass, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import {
   BirthDetailsForm,
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
-  formStateToBirthInput,
+  reconcileSubmittedFormOnChange,
   validateBirthFormState,
   type BirthFormState,
 } from '../components/BirthDetailsForm';
+import { BirthplaceResultGuard } from '../components/BirthplaceResultGuard';
 import { KundliChartSvg, type ChartStyle, type ChartType } from '../components/KundliChartSvg';
 import {
   CALC_UI,
@@ -29,23 +31,42 @@ export function KundliPage() {
   const [formState, setFormState] = useState<BirthFormState>(() =>
     createDefaultBirthFormState({ name: '', dateStr: '1996-05-15', timeStr: '08:30', cityId: 'guwahati' }),
   );
-  const [submittedState, setSubmittedState] = useState<BirthFormState>(formState);
+  const [submittedState, setSubmittedState] = useState<BirthFormState | null>(formState);
   const [chartStyle, setChartStyle] = useState<ChartStyle>('north');
   const [chartType, setChartType] = useState<ChartType>('lagna');
 
-  const submittedPlace = useMemo(
-    () => validateBirthFormState(submittedState, language).resolved,
+  const handleFormChange = (next: BirthFormState) => {
+    setFormState(next);
+    setSubmittedState((prev) => reconcileSubmittedFormOnChange(formState, next, prev));
+  };
+
+  const handleFormSubmit = () => {
+    const payload = buildValidatedCalculationPayload(formState, language);
+    setSubmittedState(payload ? formState : null);
+  };
+
+  const draftValidation = useMemo(
+    () => validateBirthFormState(formState, language),
+    [formState, language],
+  );
+
+  const calcPayload = useMemo(
+    () => buildValidatedCalculationPayload(submittedState, language),
     [submittedState, language],
   );
-  const birthInput = useMemo(() => formStateToBirthInput(submittedState), [submittedState]);
-  const kundli = useMemo(() => computeKundli(birthInput), [birthInput]);
 
-  const activeLagnaIdx =
-    chartType === 'navamsha'
+  const kundli = useMemo(
+    () => (calcPayload ? computeKundli(calcPayload.input) : null),
+    [calcPayload],
+  );
+
+  const activeLagnaIdx = kundli
+    ? chartType === 'navamsha'
       ? kundli.navamshaLagnaIndex
       : chartType === 'chandra'
         ? kundli.moonRashiIndex
-        : kundli.ascendantRashiIndex;
+        : kundli.ascendantRashiIndex
+    : 0;
 
   const chartTitle =
     chartType === 'navamsha'
@@ -86,14 +107,20 @@ export function KundliPage() {
             <BirthDetailsForm
               idPrefix="kundli"
               value={formState}
-              onChange={setFormState}
-              onSubmit={() => setSubmittedState(formState)}
+              onChange={handleFormChange}
+              onSubmit={handleFormSubmit}
               submitLabel={ui.calculateBtn}
             />
           </div>
 
           {/* Chart & Summary Cards */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="lg:col-span-8 space-y-6" data-testid="kundli-results">
+            {!calcPayload || !kundli ? (
+              <BirthplaceResultGuard
+                entries={[{ selection: formState.birthplace, validation: draftValidation }]}
+              />
+            ) : (
+              <>
             {/* Key Natal Summary Strip */}
             <div className="p-6 rounded-lg bg-[#351016] text-[#F8F0E3] border border-[#D8AD59]/40">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#D8AD59]/25">
@@ -101,23 +128,24 @@ export function KundliPage() {
                   <div className="flex items-center gap-2.5">
                     <Compass className="w-5 h-5 text-[#E99A32] shrink-0" aria-hidden="true" />
                     <h2 className="font-display text-xl font-semibold text-[#F8F0E3]">
-                      {submittedState.name.trim() || spec.title}
+                      {calcPayload.form.name.trim() || spec.title}
                     </h2>
                   </div>
-                  {submittedPlace && (
-                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#EBD08D]/90">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/45 text-[#F5DC9B]">
-                        {submittedPlace.mode === 'custom' ? bpUi.customBadge : bpUi.presetBadge}
-                      </span>
-                      <span className="font-medium text-[#F8F0E3]">
-                        {submittedPlace.displayName}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums text-[11px]">
-                        {submittedPlace.coordinatesLabel} · {submittedPlace.timezoneLabel}
-                      </span>
-                    </p>
-                  )}
+                  <p
+                    data-testid="kundli-result-birthplace"
+                    className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#EBD08D]/90"
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#24090E] border border-[#D8AD59]/45 text-[#F5DC9B]">
+                      {calcPayload.resolved.mode === 'custom' ? bpUi.customBadge : bpUi.presetBadge}
+                    </span>
+                    <span className="font-medium text-[#F8F0E3]">
+                      {calcPayload.resolved.displayName}
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-mono tabular-nums text-[11px]">
+                      {calcPayload.resolved.coordinatesLabel} · {calcPayload.resolved.timezoneLabel}
+                    </span>
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -234,10 +262,14 @@ export function KundliPage() {
                 title={chartTitle}
               />
             </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Full Navagraha Planetary Table */}
+        {/* Full Navagraha Planetary Table & Vimshottari Dasha (shown only for active validated calculation) */}
+        {calcPayload && kundli && (
+          <>
         <div className="rounded-lg bg-[#FDF9F2] border border-[#D8AD59]/40 overflow-hidden">
           <div className="px-6 py-4 bg-[#351016] text-[#F8F0E3] border-b border-[#D8AD59]/30">
             <h2 className="font-display text-xl font-semibold">{spec.highlights[1]?.title}</h2>
@@ -322,8 +354,8 @@ export function KundliPage() {
                     )}
                   </div>
                   <span className="font-mono tabular-nums text-xs text-[#542D24]">
-                    {formatShortDate(d.startDate, language, birthInput.utcOffsetMinutes)} –{' '}
-                    {formatShortDate(d.endDate, language, birthInput.utcOffsetMinutes)}
+                    {formatShortDate(d.startDate, language, calcPayload.input.utcOffsetMinutes)} –{' '}
+                    {formatShortDate(d.endDate, language, calcPayload.input.utcOffsetMinutes)}
                   </span>
                 </div>
               ))}
@@ -352,14 +384,16 @@ export function KundliPage() {
                     {ad.isCurrent ? ` · ${ui.currentTag}` : ''}
                   </span>
                   <span className="font-mono tabular-nums text-xs text-[#542D24]">
-                    {formatShortDate(ad.startDate, language, birthInput.utcOffsetMinutes)} –{' '}
-                    {formatShortDate(ad.endDate, language, birthInput.utcOffsetMinutes)}
+                    {formatShortDate(ad.startDate, language, calcPayload.input.utcOffsetMinutes)} –{' '}
+                    {formatShortDate(ad.endDate, language, calcPayload.input.utcOffsetMinutes)}
                   </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+          </>
+        )}
 
         {/* Classical Methodology Note */}
         <div className="p-6 rounded-lg bg-[#EFE3CE]/75 border border-[#D8AD59]/40">

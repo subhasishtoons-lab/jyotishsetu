@@ -225,6 +225,68 @@ export function createCustomBirthplace(
 }
 
 /**
+ * Compares two BirthplaceSelection values for exact equality across mode,
+ * preset city selection, and all custom location fields.
+ */
+export function areBirthplaceSelectionsEqual(
+  a: BirthplaceSelection,
+  b: BirthplaceSelection,
+): boolean {
+  if (a.mode !== b.mode) return false;
+  if (a.mode === 'preset') {
+    return a.presetCityId === b.presetCityId;
+  }
+  const ca = a.custom;
+  const cb = b.custom;
+  return (
+    ca.placeName === cb.placeName &&
+    ca.district === cb.district &&
+    ca.state === cb.state &&
+    ca.country === cb.country &&
+    ca.latValue === cb.latValue &&
+    ca.latDir === cb.latDir &&
+    ca.lonValue === cb.lonValue &&
+    ca.lonDir === cb.lonDir &&
+    ca.ianaTimeZone === cb.ianaTimeZone
+  );
+}
+
+/**
+ * Returns true whenever the user changed birthplace mode, preset city,
+ * or any custom birthplace field (name, region, coordinates, hemisphere, or timezone).
+ */
+export function hasBirthplaceChanged(
+  prev: BirthplaceSelection,
+  next: BirthplaceSelection,
+): boolean {
+  return !areBirthplaceSelectionsEqual(prev, next);
+}
+
+/**
+ * Validates that the coordinates and UTC offset passed into a calculation
+ * strictly match the selected and resolved birthplace — and that a custom
+ * birthplace NEVER silently resolves to a preset city.
+ */
+export function assertBirthplaceMatchesCalculation(
+  selection: BirthplaceSelection,
+  resolved: ResolvedBirthplace,
+  calcCoords: { lat: number; lon: number; utcOffsetMinutes: number },
+): boolean {
+  if (selection.mode !== resolved.mode) return false;
+  if (selection.mode === 'custom' && resolved.presetCityId !== null) return false;
+  if (selection.mode === 'preset' && resolved.presetCityId !== selection.presetCityId) {
+    return false;
+  }
+  if (!Number.isFinite(calcCoords.lat) || !Number.isFinite(calcCoords.lon)) return false;
+  if (!Number.isFinite(calcCoords.utcOffsetMinutes)) return false;
+  return (
+    calcCoords.lat === resolved.lat &&
+    calcCoords.lon === resolved.lon &&
+    calcCoords.utcOffsetMinutes === resolved.utcOffsetMinutes
+  );
+}
+
+/**
  * Parses a decimal coordinate string with hemisphere indicator (N/S or E/W).
  * - Empty or non-numeric input returns `null` (never substitutes a default city).
  * - If user enters a leading negative sign (e.g. "-33.8688"), the negative sign is honoured
@@ -551,6 +613,12 @@ export const BIRTHPLACE_UI = {
     errTimezone: 'Please select a valid IANA timezone.',
     privacyNote: 'Processed locally in your browser · Never stored or transmitted.',
     customIncompleteBadge: 'Coordinates needed',
+    resultsClearedTitle: 'Birthplace Updated — Ready to Calculate',
+    resultsClearedBody:
+      'Previous results were cleared when the birthplace changed so stale city data is never shown. Click the calculate button to compute results for the selected location below.',
+    matchingClearedBody:
+      'Previous compatibility results were cleared when a partner’s birthplace changed. Verify both birthplaces and click the match button to recalculate.',
+    customDraftLabel: 'Entered custom location',
   },
   hi: {
     birthplaceLabel: 'जन्म स्थान (गाँव, कस्बा या शहर)',
@@ -601,6 +669,12 @@ export const BIRTHPLACE_UI = {
     errTimezone: 'कृपया एक मान्य IANA समय क्षेत्र चुनें।',
     privacyNote: 'केवल आपके ब्राउज़र में स्थानीय गणना · कोई जन्म विवरण संग्रहीत या प्रेषित नहीं।',
     customIncompleteBadge: 'निर्देशांक आवश्यक',
+    resultsClearedTitle: 'जन्म स्थान बदल गया है — नई गणना के लिए तैयार',
+    resultsClearedBody:
+      'जन्म स्थान बदलने पर पिछले परिणाम तुरंत हटा दिए गए हैं ताकि किसी पुराने शहर का डेटा न दिखे। नीचे चयनित स्थान के लिए नया परिणाम देखने हेतु गणना बटन दबाएँ।',
+    matchingClearedBody:
+      'किसी भी पक्ष का जन्म स्थान बदलने पर पिछला मिलान परिणाम हटा दिया गया है। दोनों पक्षों के मान्य स्थान सुनिश्चित कर पुनः मिलान बटन दबाएँ।',
+    customDraftLabel: 'दर्ज कस्टम स्थान',
   },
   as: {
     birthplaceLabel: 'জন্মস্থান (গাঁও, নগৰ বা চহৰ)',
@@ -651,5 +725,11 @@ export const BIRTHPLACE_UI = {
     errTimezone: 'অনুগ্ৰহ কৰি এটা বৈধ IANA সময় অঞ্চল বাছনি কৰক।',
     privacyNote: 'কেৱল আপোনাৰ ব্ৰাউজাৰতে স্থানীয়ভাৱে গণনা হয় · কোনো তথ্য সংৰক্ষণ বা প্ৰেৰণ নহয়।',
     customIncompleteBadge: 'স্থানাংক আৱশ্যক',
+    resultsClearedTitle: 'জন্মস্থান সলনি কৰা হৈছে — নতুন গণনাৰ বাবে সাজু',
+    resultsClearedBody:
+      'জন্মস্থান সলনি কৰাৰ লগে লগে পূৰ্বৰ ফলাফল আঁতৰোৱা হৈছে যাতে পুৰণি চহৰৰ তথ্য প্ৰদৰ্শন নহয়। তলত নিৰ্বাচিত স্থানৰ বাবে নতুন ফলাফল চাবলৈ গণনা বুটামত ক্লিক কৰক।',
+    matchingClearedBody:
+      'কোনো এটা পক্ষৰ জন্মস্থান সলনি হোৱাৰ লগে লগে পূৰ্বৰ মিলন ফলাফল আঁতৰোৱা হৈছে। দুয়োপক্ষৰ বৈধ স্থান নিশ্চিত কৰি পুনৰ গণনা কৰক।',
+    customDraftLabel: 'দিয়া নিজস্ব স্থান',
   },
 } as const;

@@ -20,6 +20,7 @@ import {
 } from '../utils/panchang';
 import {
   BIRTHPLACE_UI,
+  assertBirthplaceMatchesCalculation,
   createPresetBirthplace,
   validateBirthplaceSelection,
   type BirthplaceSelection,
@@ -152,6 +153,15 @@ export function PanchangPage() {
 
   const live = useMemo(() => {
     if (!resolvedLocation) return null;
+    if (
+      !assertBirthplaceMatchesCalculation(locationSelection, resolvedLocation, {
+        lat: resolvedLocation.lat,
+        lon: resolvedLocation.lon,
+        utcOffsetMinutes: resolvedLocation.utcOffsetMinutes,
+      })
+    ) {
+      return null;
+    }
     return computeLivePanchang(
       year,
       month,
@@ -160,7 +170,7 @@ export function PanchangPage() {
       resolvedLocation.lon,
       resolvedLocation.utcOffsetMinutes,
     );
-  }, [year, month, day, resolvedLocation]);
+  }, [year, month, day, locationSelection, resolvedLocation]);
 
   const handleLocationChange = (next: BirthplaceSelection) => {
     setLocationSelection(next);

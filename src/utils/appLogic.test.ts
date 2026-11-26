@@ -57,17 +57,23 @@ import {
   computeCurrentTransits,
 } from './vedicAstrology';
 import {
+  buildValidatedCalculationPayload,
   createDefaultBirthFormState,
   formStateToBirthInput,
   formStateToBirthInputOrNull,
+  reconcileSubmittedFormOnChange,
+  reconcileSubmittedPairOnChange,
   validateBirthFormState,
 } from '../components/BirthDetailsForm';
 import {
   BIRTHPLACE_UI,
+  areBirthplaceSelectionsEqual,
+  assertBirthplaceMatchesCalculation,
   createCustomBirthplace,
   createEmptyCustomBirthplace,
   createPresetBirthplace,
   getAvailableIanaTimeZones,
+  hasBirthplaceChanged,
   parseSignedCoordinate,
   resolveIanaUtcOffsetMinutes,
   searchPresetCities,
@@ -1496,6 +1502,271 @@ test('Birthplace 5: Historical timezone rules (pre-1906 India LMT, 1943 War Time
     'BIRTHPLACE_UI.as must use pure Assamese ৰ (U+09F0), never Bengali র (U+09B0)',
   );
 });
+
+test('Birthplace Regression 1: Switching from preset Guwahati to custom Sivasagar without coordinates immediately clears stale results and blocks calculation', () => {
+  const guwahatiForm = createDefaultBirthFormState({
+    dateStr: '1996-05-15',
+    timeStr: '08:30',
+    cityId: 'guwahati',
+  });
+
+  // Initial state: Guwahati preset is valid and computed
+  const initialPayload = buildValidatedCalculationPayload(guwahatiForm, 'en');
+  assert.ok(initialPayload);
+  assert.equal(initialPayload.resolved.mode, 'preset');
+  assert.equal(initialPayload.resolved.presetCityId, 'guwahati');
+  assert.equal(initialPayload.resolved.displayName, 'Guwahati, Assam');
+  assert.equal(initialPayload.input.lat, 26.1445);
+  assert.equal(initialPayload.input.lon, 91.7362);
+
+  // User selects "My birthplace is not listed" and types "Sivasagar, Assam, India" without coordinates
+  const sivasagarIncomplete = {
+    ...guwahatiForm,
+    birthplace: createCustomBirthplace(
+      {
+        placeName: 'Sivasagar',
+        state: 'Assam',
+        country: 'India',
+        latValue: '',
+        latDir: 'N',
+        lonValue: '',
+        lonDir: 'E',
+        ianaTimeZone: 'Asia/Kolkata',
+      },
+      'guwahati',
+    ),
+  };
+
+  assert.equal(hasBirthplaceChanged(guwahatiForm.birthplace, sivasagarIncomplete.birthplace), true);
+
+  // 1) Immediately clears previously calculated Guwahati result
+  const submittedAfterChange = reconcileSubmittedFormOnChange(
+    guwahatiForm,
+    sivasagarIncomplete,
+    guwahatiForm,
+  );
+  assert.equal(
+    submittedAfterChange,
+    null,
+    'Switching from preset Guwahati to custom Sivasagar must immediately clear submittedForm',
+  );
+
+  // 2) Blocks calculation until valid latitude & longitude are supplied (zero fallback to Guwahati)
+  const blockedPayload = buildValidatedCalculationPayload(sivasagarIncomplete, 'en');
+  assert.equal(
+    blockedPayload,
+    null,
+    'Incomplete custom birthplace must never resolve or fall back to Guwahati',
+  );
+  assert.equal(buildValidatedCalculationPayload(submittedAfterChange, 'en'), null);
+
+  // 3) Once user supplies valid Sivasagar coordinates, calculation succeeds with exact Sivasagar metadata
+  const sivasagarValid = {
+    ...sivasagarIncomplete,
+    birthplace: createCustomBirthplace(
+      {
+        placeName: 'Sivasagar',
+        state: 'Assam',
+        country: 'India',
+        latValue: '26.9826',
+        latDir: 'N',
+        lonValue: '94.6425',
+        lonDir: 'E',
+        ianaTimeZone: 'Asia/Kolkata',
+      },
+      'guwahati',
+    ),
+  };
+
+  const validPayload = buildValidatedCalculationPayload(sivasagarValid, 'en');
+  assert.ok(validPayload);
+  assert.equal(validPayload.selection, sivasagarValid.birthplace);
+  assert.equal(validPayload.resolved.mode, 'custom');
+  assert.equal(validPayload.resolved.presetCityId, null);
+  assert.equal(validPayload.resolved.displayName, 'Sivasagar, Assam, India');
+  assert.equal(validPayload.resolved.coordinatesLabel, '26.9826° N, 94.6425° E');
+  assert.equal(validPayload.input.lat, 26.9826);
+  assert.equal(validPayload.input.lon, 94.6425);
+  assert.equal(validPayload.input.utcOffsetMinutes, 330);
+  assert.equal(
+    assertBirthplaceMatchesCalculation(
+      validPayload.selection,
+      validPayload.resolved,
+      validPayload.input,
+    ),
+    true,
+  );
+
+  // Verify Mangal Dosha, Kundli, Sade Sati, and Nakshatra calculators all accept the validated Sivasagar payload
+  const mangal = computeMangalDosha(validPayload.input);
+  const kundli = computeKundli(validPayload.input);
+  const sadeSati = computeSadeSati(validPayload.input);
+  const nakshatra = computeNakshatraDetails(validPayload.input);
+  assert.ok(mangal.fromLagnaHouse >= 1 && mangal.fromLagnaHouse <= 12);
+  assert.ok(kundli.ascendantLon >= 0 && kundli.ascendantLon < 360);
+  assert.ok(sadeSati.houseFromMoon >= 1 && sadeSati.houseFromMoon <= 12);
+  assert.ok(nakshatra.nakshatraIndex >= 0 && nakshatra.nakshatraIndex < 27);
+  // Sivasagar is ~2.9° east of Guwahati -> distinct sidereal Ascendant
+  const guwahatiKundli = computeKundli(initialPayload.input);
+  assert.ok(
+    Math.abs(kundli.ascendantLon - guwahatiKundli.ascendantLon) > 2.0,
+    'Sivasagar calculation must use Sivasagar coordinates, not Guwahati',
+  );
+});
+
+test('Birthplace Regression 2: Any preset or custom birthplace change clears results & coordinate-match assertion rejects fallbacks', () => {
+  const guwahatiForm = createDefaultBirthFormState({ cityId: 'guwahati' });
+  const dibrugarhForm = createDefaultBirthFormState({ cityId: 'dibrugarh' });
+
+  // Changing preset city clears previously submitted result immediately
+  assert.equal(
+    reconcileSubmittedFormOnChange(guwahatiForm, dibrugarhForm, guwahatiForm),
+    null,
+  );
+
+  // Editing an unrelated field (name) without changing birthplace preserves the submitted form
+  const renamedGuwahati = { ...guwahatiForm, name: 'Aarav' };
+  assert.equal(
+    areBirthplaceSelectionsEqual(guwahatiForm.birthplace, renamedGuwahati.birthplace),
+    true,
+  );
+  assert.equal(
+    reconcileSubmittedFormOnChange(guwahatiForm, renamedGuwahati, guwahatiForm),
+    guwahatiForm,
+  );
+
+  // Editing a custom location's longitude clears previously submitted custom result immediately
+  const customA = createDefaultBirthFormState({
+    birthplace: createCustomBirthplace({
+      placeName: 'Sivasagar',
+      latValue: '26.9826',
+      latDir: 'N',
+      lonValue: '94.6425',
+      lonDir: 'E',
+      ianaTimeZone: 'Asia/Kolkata',
+    }),
+  });
+  const customB = createDefaultBirthFormState({
+    birthplace: createCustomBirthplace({
+      placeName: 'Sivasagar',
+      latValue: '26.9826',
+      latDir: 'N',
+      lonValue: '94.6500',
+      lonDir: 'E',
+      ianaTimeZone: 'Asia/Kolkata',
+    }),
+  });
+  assert.equal(reconcileSubmittedFormOnChange(customA, customB, customA), null);
+
+  // assertBirthplaceMatchesCalculation rejects mismatched preset/custom fallback or altered coordinates
+  const ghyPayload = buildValidatedCalculationPayload(guwahatiForm, 'en')!;
+  assert.equal(
+    assertBirthplaceMatchesCalculation(customA.birthplace, ghyPayload.resolved, ghyPayload.input),
+    false,
+    'Custom selection must never pass assertion with preset Guwahati resolved metadata',
+  );
+  const customPayload = buildValidatedCalculationPayload(customA, 'en')!;
+  assert.equal(
+    assertBirthplaceMatchesCalculation(customPayload.selection, customPayload.resolved, {
+      lat: 26.1445,
+      lon: 91.7362,
+      utcOffsetMinutes: 330,
+    }),
+    false,
+    'Custom Sivasagar selection must reject Guwahati coordinates passed into calculation',
+  );
+  assert.equal(
+    assertBirthplaceMatchesCalculation(customPayload.selection, customPayload.resolved, {
+      lat: customPayload.resolved.lat,
+      lon: customPayload.resolved.lon,
+      utcOffsetMinutes: 0,
+    }),
+    false,
+    'Mismatched UTC offset must fail assertion',
+  );
+});
+
+test('Birthplace Regression 3: Kundli Matching clears stale pair results when either Partner A or Partner B changes birthplace', () => {
+  const partnerA = createDefaultBirthFormState({
+    dateStr: '1994-08-21',
+    timeStr: '07:15',
+    cityId: 'varanasi',
+  });
+  const partnerB = createDefaultBirthFormState({
+    dateStr: '1996-11-04',
+    timeStr: '14:40',
+    cityId: 'guwahati',
+  });
+  const initialPair = { a: partnerA, b: partnerB };
+
+  // Partner B switches to custom "Sivasagar, Assam, India" without coordinates
+  const partnerBIncomplete = {
+    ...partnerB,
+    birthplace: createCustomBirthplace({
+      placeName: 'Sivasagar',
+      state: 'Assam',
+      country: 'India',
+      latValue: '',
+      latDir: 'N',
+      lonValue: '',
+      lonDir: 'E',
+      ianaTimeZone: 'Asia/Kolkata',
+    }),
+  };
+
+  assert.equal(
+    reconcileSubmittedPairOnChange(partnerA, partnerA, partnerB, partnerBIncomplete, initialPair),
+    null,
+    'Changing Partner B birthplace must immediately clear Kundli Matching results',
+  );
+  assert.equal(buildValidatedCalculationPayload(partnerBIncomplete, 'en'), null);
+
+  // Partner A switches to custom "Tezpur, Assam, India" without coordinates
+  const partnerAIncomplete = {
+    ...partnerA,
+    birthplace: createCustomBirthplace({
+      placeName: 'Tezpur',
+      state: 'Assam',
+      country: 'India',
+      latValue: '',
+      latDir: 'N',
+      lonValue: '',
+      lonDir: 'E',
+      ianaTimeZone: 'Asia/Kolkata',
+    }),
+  };
+  assert.equal(
+    reconcileSubmittedPairOnChange(partnerA, partnerAIncomplete, partnerB, partnerB, initialPair),
+    null,
+    'Changing Partner A birthplace must immediately clear Kundli Matching results',
+  );
+  assert.equal(buildValidatedCalculationPayload(partnerAIncomplete, 'en'), null);
+
+  // Once Partner B completes valid Sivasagar coordinates, both partners validate and compute cleanly
+  const partnerBValid = {
+    ...partnerB,
+    birthplace: createCustomBirthplace({
+      placeName: 'Sivasagar',
+      state: 'Assam',
+      country: 'India',
+      latValue: '26.9826',
+      latDir: 'N',
+      lonValue: '94.6425',
+      lonDir: 'E',
+      ianaTimeZone: 'Asia/Kolkata',
+    }),
+  };
+  const payloadA = buildValidatedCalculationPayload(partnerA, 'en');
+  const payloadB = buildValidatedCalculationPayload(partnerBValid, 'en');
+  assert.ok(payloadA && payloadB);
+  assert.equal(payloadA.resolved.presetCityId, 'varanasi');
+  assert.equal(payloadB.resolved.mode, 'custom');
+  assert.equal(payloadB.resolved.presetCityId, null);
+  assert.equal(payloadB.resolved.displayName, 'Sivasagar, Assam, India');
+  const match = computeAshtakoota(payloadA.input, payloadB.input);
+  assert.ok(match.totalScore >= 0 && match.totalScore <= 36);
+});
+
 
 
 
