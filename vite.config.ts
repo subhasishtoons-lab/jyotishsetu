@@ -7,13 +7,14 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    base: '/',
+    // Restore the existing GitHub Pages project path.
+    base: '/jyotishsetu/',
+
     plugins: [
       react(),
       tailwindcss(),
 
       // Copies src/assets into dist/src/assets.
-      // Preserve this for unbundled image assets.
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
