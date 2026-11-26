@@ -1,8 +1,37 @@
 
 import type { ZodiacId } from '../i18n/types';
 
-// Custom domain uses the website root.
-export const BASE_PATH = '/';
+// Active GitHub Pages deployment lives under /jyotishsetu/.
+// A future custom domain can override this to "/" via VITE_BASE_PATH=/ at build time.
+export const DEFAULT_GITHUB_PAGES_BASE_PATH = '/jyotishsetu';
+export const CUSTOM_DOMAIN_BASE_PATH = '/';
+
+export function normalizeBasePath(rawBase?: string | null): string {
+  const trimmed = (rawBase ?? '').trim();
+  if (!trimmed || trimmed === '/') return '/';
+  const collapsed = trimmed.replace(/\/{2,}/g, '/');
+  const ensuredLeading = collapsed.startsWith('/') ? collapsed : `/${collapsed}`;
+  const withoutTrailing = ensuredLeading.replace(/\/+$/, '');
+  return withoutTrailing === '' ? '/' : withoutTrailing;
+}
+
+function resolveConfiguredBasePath(): string {
+  const metaEnv = (
+    import.meta as unknown as { env?: { BASE_URL?: string; VITE_BASE_PATH?: string } }
+  ).env;
+  if (metaEnv?.VITE_BASE_PATH) {
+    return normalizeBasePath(metaEnv.VITE_BASE_PATH);
+  }
+  if (metaEnv?.BASE_URL) {
+    return normalizeBasePath(metaEnv.BASE_URL);
+  }
+  if (typeof process !== 'undefined' && process.env?.VITE_BASE_PATH) {
+    return normalizeBasePath(process.env.VITE_BASE_PATH);
+  }
+  return DEFAULT_GITHUB_PAGES_BASE_PATH;
+}
+
+export const BASE_PATH = resolveConfiguredBasePath();
 
 export type RoutePage =
   | { kind: 'home' }
@@ -42,39 +71,56 @@ const VALID_TOOL_SLUGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Normalizes a URL into an app-relative path.
- * Examples: / -> /, /kundli -> /kundli.
+ * Strips the configured deployment base path (default: /jyotishsetu) and normalizes
+ * into an app-relative path.
+ * Examples (with /jyotishsetu): /jyotishsetu/ -> /, /jyotishsetu/kundli/ -> /kundli, /kundli -> /kundli.
  */
-export function stripBasePath(rawPath: string): string {
+export function stripBasePath(rawPath: string, basePath: string = BASE_PATH): string {
   const withoutQuery = rawPath.split('?')[0]?.split('#')[0] ?? '/';
   const collapsed = withoutQuery.replace(/\/{2,}/g, '/');
   const ensuredLeading = collapsed.startsWith('/')
     ? collapsed
     : `/${collapsed}`;
 
-  const trimmed = ensuredLeading.replace(/\/+$/, '');
+  const normalizedBase = normalizeBasePath(basePath);
+  let stripped = ensuredLeading;
+  if (normalizedBase !== '/') {
+    if (stripped === normalizedBase) {
+      stripped = '/';
+    } else if (stripped.startsWith(`${normalizedBase}/`)) {
+      stripped = stripped.slice(normalizedBase.length);
+    }
+  }
+
+  const trimmed = stripped.replace(/\/+$/, '');
   return trimmed === '' ? '/' : trimmed;
 }
 
-export function normalizePathname(rawPath: string): string {
-  return stripBasePath(rawPath);
+export function normalizePathname(rawPath: string, basePath: string = BASE_PATH): string {
+  return stripBasePath(rawPath, basePath);
 }
 
 /**
- * Custom-domain URLs use root-relative paths.
- * Homepage -> /
- * Subpages -> /kundli, /panchang, etc.
+ * Prepends the configured deployment base path (default: /jyotishsetu) to an app route.
+ * With /jyotishsetu: / -> /jyotishsetu/, /kundli -> /jyotishsetu/kundli.
+ * With future custom domain /: / -> /, /kundli -> /kundli.
  */
-export function withBasePath(appPath: string): string {
-  return stripBasePath(appPath);
+export function withBasePath(appPath: string, basePath: string = BASE_PATH): string {
+  const cleanAppPath = stripBasePath(appPath, basePath);
+  const normalizedBase = normalizeBasePath(basePath);
+  if (normalizedBase === '/') {
+    return cleanAppPath;
+  }
+  return cleanAppPath === '/' ? `${normalizedBase}/` : `${normalizedBase}${cleanAppPath}`;
 }
 
 /**
- * Restores a route from the GitHub Pages 404.html fallback.
+ * Restores a route from the GitHub Pages 404.html fallback (?p=<route>&q=<query>).
  */
 export function resolveGitHubPagesRedirect(
   search: string,
   hash = '',
+  basePath: string = BASE_PATH,
 ): string | null {
   if (!search || !search.includes('p=')) return null;
 
@@ -83,7 +129,7 @@ export function resolveGitHubPagesRedirect(
     const rawPath = params.get('p');
     if (!rawPath) return null;
 
-    const targetPath = withBasePath(rawPath);
+    const targetPath = withBasePath(rawPath, basePath);
     const rawQuery = params.get('q');
     const queryPart = rawQuery ? `?${rawQuery}` : '';
 
@@ -93,8 +139,8 @@ export function resolveGitHubPagesRedirect(
   }
 }
 
-export function parseRoute(pathname: string): RoutePage {
-  const path = stripBasePath(pathname);
+export function parseRoute(pathname: string, basePath: string = BASE_PATH): RoutePage {
+  const path = stripBasePath(pathname, basePath);
 
   if (path === '/') return { kind: 'home' };
   if (path === '/kundli') return { kind: 'kundli' };

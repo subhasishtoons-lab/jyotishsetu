@@ -16,6 +16,10 @@ import {
   createEmptyCustomBirthplace,
   formatCustomPlaceName,
   getAvailableIanaTimeZones,
+  isValidIanaTimeZone,
+  normalizeIanaTimeZone,
+  parseCoordinateInput,
+  parseSignedCoordinate,
   resolveIanaUtcOffsetMinutes,
   searchPresetCities,
   validateBirthplaceSelection,
@@ -79,18 +83,34 @@ export function BirthplaceSelector({
     );
   }, [allTimeZones, tzQuery]);
 
+  const normalizedSelectedTz = normalizeIanaTimeZone(value.custom.ianaTimeZone);
+
+  const selectTimeZones = useMemo(() => {
+    if (
+      normalizedSelectedTz &&
+      isValidIanaTimeZone(normalizedSelectedTz) &&
+      !filteredTimeZones.some((tz) => tz.iana === normalizedSelectedTz)
+    ) {
+      const existing = allTimeZones.find((tz) => tz.iana === normalizedSelectedTz);
+      return [
+        existing ?? {
+          iana: normalizedSelectedTz,
+          label: normalizedSelectedTz.replace(/_/g, ' '),
+          region: 'Selected',
+        },
+        ...filteredTimeZones,
+      ];
+    }
+    return filteredTimeZones;
+  }, [filteredTimeZones, normalizedSelectedTz, allTimeZones]);
+
   const customPreviewOffset = useMemo(() => {
-    const lonNum = Number(value.custom.lonValue);
+    const parsedLon = parseSignedCoordinate(value.custom.lonValue, value.custom.lonDir, 'lon');
     const signedLon =
-      value.custom.lonValue.trim() && Number.isFinite(lonNum)
-        ? value.custom.lonValue.trim().startsWith('-')
-          ? lonNum
-          : value.custom.lonDir === 'W'
-            ? -Math.abs(lonNum)
-            : Math.abs(lonNum)
-        : undefined;
-    return resolveIanaUtcOffsetMinutes(value.custom.ianaTimeZone, dateStr, timeStr, signedLon);
-  }, [value.custom.ianaTimeZone, value.custom.lonValue, value.custom.lonDir, dateStr, timeStr]);
+      parsedLon !== null && parsedLon >= -180 && parsedLon <= 180 ? parsedLon : undefined;
+    const tz = isValidIanaTimeZone(normalizedSelectedTz) ? normalizedSelectedTz : 'UTC';
+    return resolveIanaUtcOffsetMinutes(tz, dateStr, timeStr, signedLon);
+  }, [normalizedSelectedTz, value.custom.lonValue, value.custom.lonDir, dateStr, timeStr]);
 
   const isDark = theme === 'dark';
 
@@ -107,23 +127,17 @@ export function BirthplaceSelector({
   const switchToCustom = (prefillName?: string) => {
     const cleanedPrefill = (prefillName ?? '').trim();
     const existingCustom = value.custom;
-    const nextCustom: CustomBirthplaceFields =
-      value.mode === 'custom'
-        ? {
-            ...existingCustom,
-            placeName: cleanedPrefill || existingCustom.placeName,
-          }
-        : createEmptyCustomBirthplace({
-            placeName: cleanedPrefill || existingCustom.placeName,
-            district: existingCustom.district,
-            state: existingCustom.state,
-            country: existingCustom.country,
-            latValue: existingCustom.latValue,
-            latDir: existingCustom.latDir,
-            lonValue: existingCustom.lonValue,
-            lonDir: existingCustom.lonDir,
-            ianaTimeZone: existingCustom.ianaTimeZone || 'Asia/Kolkata',
-          });
+    const nextCustom: CustomBirthplaceFields = createEmptyCustomBirthplace({
+      placeName: cleanedPrefill || existingCustom.placeName,
+      district: existingCustom.district,
+      state: existingCustom.state,
+      country: existingCustom.country,
+      latValue: existingCustom.latValue,
+      latDir: existingCustom.latDir,
+      lonValue: existingCustom.lonValue,
+      lonDir: existingCustom.lonDir,
+      ianaTimeZone: existingCustom.ianaTimeZone || 'Asia/Kolkata',
+    });
 
     onChange({
       ...value,
@@ -138,48 +152,146 @@ export function BirthplaceSelector({
     key: K,
     fieldValue: CustomBirthplaceFields[K],
   ) => {
+    const nextCustom: CustomBirthplaceFields = {
+      ...value.custom,
+      [key]:
+        key === 'ianaTimeZone'
+          ? (normalizeIanaTimeZone(String(fieldValue)) as CustomBirthplaceFields[K])
+          : fieldValue,
+    };
+
+    if (key === 'latDir') {
+      const parsedLat = parseSignedCoordinate(nextCustom.latValue, nextCustom.latDir, 'lat');
+      nextCustom.latitude =
+        parsedLat !== null && parsedLat >= -90 && parsedLat <= 90 ? parsedLat : null;
+    } else if (key === 'lonDir') {
+      const parsedLon = parseSignedCoordinate(nextCustom.lonValue, nextCustom.lonDir, 'lon');
+      nextCustom.longitude =
+        parsedLon !== null && parsedLon >= -180 && parsedLon <= 180 ? parsedLon : null;
+    }
+
+    onChange({
+      ...value,
+      mode: 'custom',
+      custom: nextCustom,
+    });
+  };
+
+  const handleLatInput = (raw: string) => {
+    const trimmed = raw.replace(/[\u2212\u2013\u2014]/g, '-').trim();
+    if (trimmed === '-') {
+      onChange({
+        ...value,
+        mode: 'custom',
+        custom: {
+          ...value.custom,
+          latValue: '',
+          latDir: 'S',
+          latitude: null,
+        },
+      });
+      return;
+    }
+
+    const parsed = parseCoordinateInput(raw, value.custom.latDir, 'lat');
+    if (parsed) {
+      const nextDir = parsed.hemisphere as LatHemisphere;
+      const shouldCleanText = parsed.hasExplicitHemisphere || /[°º]/.test(raw);
+      const nextLatValue = shouldCleanText ? parsed.cleanedText : raw;
+      const numericLat = parsed.value >= -90 && parsed.value <= 90 ? parsed.value : null;
+      onChange({
+        ...value,
+        mode: 'custom',
+        custom: {
+          ...value.custom,
+          latValue: nextLatValue,
+          latDir: nextDir,
+          latitude: numericLat,
+        },
+      });
+      return;
+    }
+
     onChange({
       ...value,
       mode: 'custom',
       custom: {
         ...value.custom,
-        [key]: fieldValue,
+        latValue: raw,
+        latitude: null,
       },
     });
   };
 
-  const handleLatInput = (raw: string) => {
-    const trimmed = raw.trim();
-    if (trimmed.startsWith('-')) {
+  const handleLonInput = (raw: string) => {
+    const trimmed = raw.replace(/[\u2212\u2013\u2014]/g, '-').trim();
+    if (trimmed === '-') {
       onChange({
         ...value,
         mode: 'custom',
         custom: {
           ...value.custom,
-          latValue: trimmed.slice(1),
-          latDir: 'S',
+          lonValue: '',
+          lonDir: 'W',
+          longitude: null,
         },
       });
       return;
     }
-    updateCustomField('latValue', raw);
+
+    const parsed = parseCoordinateInput(raw, value.custom.lonDir, 'lon');
+    if (parsed) {
+      const nextDir = parsed.hemisphere as LonHemisphere;
+      const shouldCleanText = parsed.hasExplicitHemisphere || /[°º]/.test(raw);
+      const nextLonValue = shouldCleanText ? parsed.cleanedText : raw;
+      const numericLon = parsed.value >= -180 && parsed.value <= 180 ? parsed.value : null;
+      onChange({
+        ...value,
+        mode: 'custom',
+        custom: {
+          ...value.custom,
+          lonValue: nextLonValue,
+          lonDir: nextDir,
+          longitude: numericLon,
+        },
+      });
+      return;
+    }
+
+    onChange({
+      ...value,
+      mode: 'custom',
+      custom: {
+        ...value.custom,
+        lonValue: raw,
+        longitude: null,
+      },
+    });
   };
 
-  const handleLonInput = (raw: string) => {
-    const trimmed = raw.trim();
-    if (trimmed.startsWith('-')) {
-      onChange({
-        ...value,
-        mode: 'custom',
-        custom: {
-          ...value.custom,
-          lonValue: trimmed.slice(1),
-          lonDir: 'W',
-        },
-      });
+  const handleTzQueryChange = (rawQuery: string) => {
+    setTzQuery(rawQuery);
+    const trimmed = rawQuery.trim();
+    if (!trimmed) return;
+
+    const normalized = normalizeIanaTimeZone(trimmed);
+    if (isValidIanaTimeZone(normalized)) {
+      if (normalized !== value.custom.ianaTimeZone) {
+        updateCustomField('ianaTimeZone', normalized);
+      }
       return;
     }
-    updateCustomField('lonValue', raw);
+
+    const q = trimmed.toLowerCase();
+    const matches = allTimeZones.filter(
+      (tz) =>
+        tz.iana.toLowerCase().includes(q) ||
+        tz.label.toLowerCase().includes(q) ||
+        tz.region.toLowerCase().includes(q),
+    );
+    if (matches.length === 1 && matches[0].iana !== value.custom.ianaTimeZone) {
+      updateCustomField('ianaTimeZone', matches[0].iana);
+    }
   };
 
   const fieldLabel =
@@ -631,7 +743,7 @@ export function BirthplaceSelector({
                   id={`${idPrefix}-custom-tz-search`}
                   type="text"
                   value={tzQuery}
-                  onChange={(e) => setTzQuery(e.target.value)}
+                  onChange={(e) => handleTzQueryChange(e.target.value)}
                   placeholder={ui.timezoneSearchPlaceholder}
                   aria-label={ui.timezoneSearchPlaceholder}
                   className={`${inputClass} h-9 text-xs`}
@@ -639,14 +751,16 @@ export function BirthplaceSelector({
 
                 <select
                   id={`${idPrefix}-custom-tz`}
-                  value={value.custom.ianaTimeZone}
+                  value={normalizedSelectedTz || value.custom.ianaTimeZone}
                   onChange={(e) => updateCustomField('ianaTimeZone', e.target.value)}
                   className={`${inputClass} cursor-pointer`}
                 >
-                  {filteredTimeZones.length === 0 ? (
-                    <option value={value.custom.ianaTimeZone}>{value.custom.ianaTimeZone}</option>
+                  {selectTimeZones.length === 0 ? (
+                    <option value={normalizedSelectedTz || value.custom.ianaTimeZone}>
+                      {normalizedSelectedTz || value.custom.ianaTimeZone}
+                    </option>
                   ) : (
-                    filteredTimeZones.map((tz) => (
+                    selectTimeZones.map((tz) => (
                       <option key={tz.iana} value={tz.iana}>
                         {tz.label}
                       </option>

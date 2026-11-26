@@ -5,19 +5,28 @@
     <meta charset="UTF-8" />
     <title>JyotishSetu – Redirecting…</title>
     <script>
-      // GitHub Pages SPA deep-link handler for the custom domain.
+      // GitHub Pages SPA deep-link handler.
+      // Redirects /jyotishsetu/* deep links back to /jyotishsetu/?p=... for the active
+      // GitHub Pages deployment, while remaining compatible with a future root custom domain.
       (function () {
         var l = window.location;
+        var base = '/jyotishsetu';
         var pathname = l.pathname || '/';
+        var isProjectSubpath =
+          pathname === base || pathname.indexOf(base + '/') === 0;
+        var appPath = isProjectSubpath
+          ? pathname.slice(base.length) || '/'
+          : pathname;
+        var redirectBase = isProjectSubpath ? base + '/' : '/';
 
-        var params = '?p=' + encodeURIComponent(pathname);
+        var params = '?p=' + encodeURIComponent(appPath);
 
         if (l.search && l.search.length > 1) {
           params += '&q=' + encodeURIComponent(l.search.slice(1));
         }
 
         l.replace(
-          l.protocol + '//' + l.host + '/' + params + (l.hash || '')
+          l.protocol + '//' + l.host + redirectBase + params + (l.hash || '')
         );
       })();
     </script>

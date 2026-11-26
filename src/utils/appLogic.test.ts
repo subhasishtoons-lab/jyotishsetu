@@ -11,6 +11,9 @@ import {
 } from '../i18n/index';
 import {
   BASE_PATH,
+  DEFAULT_GITHUB_PAGES_BASE_PATH,
+  CUSTOM_DOMAIN_BASE_PATH,
+  normalizeBasePath,
   parseRoute,
   normalizePathname,
   stripBasePath,
@@ -74,6 +77,8 @@ import {
   createPresetBirthplace,
   getAvailableIanaTimeZones,
   hasBirthplaceChanged,
+  normalizeIanaTimeZone,
+  parseCoordinateInput,
   parseSignedCoordinate,
   resolveIanaUtcOffsetMinutes,
   searchPresetCities,
@@ -172,8 +177,12 @@ test('language preference saves and loads from storage with safe fallback', () =
   assert.equal(loadSavedLanguage(storage), 'en');
 });
 
-test('GitHub Pages /jyotishsetu/ base path helpers produce canonical URLs and handle direct redirects', () => {
+test('GitHub Pages /jyotishsetu/ base path helpers produce canonical URLs and preserve future custom-domain / support', () => {
   assert.equal(BASE_PATH, '/jyotishsetu');
+  assert.equal(DEFAULT_GITHUB_PAGES_BASE_PATH, '/jyotishsetu');
+  assert.equal(CUSTOM_DOMAIN_BASE_PATH, '/');
+  assert.equal(normalizeBasePath('/jyotishsetu/'), '/jyotishsetu');
+  assert.equal(normalizeBasePath('/'), '/');
 
   assert.equal(withBasePath('/'), '/jyotishsetu/');
   assert.equal(withBasePath('/jyotishsetu'), '/jyotishsetu/');
@@ -201,11 +210,21 @@ test('GitHub Pages /jyotishsetu/ base path helpers produce canonical URLs and ha
   assert.equal(stripBasePath('/jyotishsetu/horoscope/simha'), '/horoscope/simha');
 
   assert.equal(resolveGitHubPagesRedirect('?p=%2Fkundli'), '/jyotishsetu/kundli');
+  assert.equal(resolveGitHubPagesRedirect('?p=%2Fjyotishsetu%2Fkundli'), '/jyotishsetu/kundli');
   assert.equal(
     resolveGitHubPagesRedirect('?p=%2Fhoroscope%2Fsimha&q=ref%3Dshare', '#details'),
     '/jyotishsetu/horoscope/simha?ref=share#details',
   );
   assert.equal(resolveGitHubPagesRedirect('?foo=bar'), null);
+
+  // Planned future custom-domain root configuration ('/') works cleanly via basePath parameter
+  assert.equal(withBasePath('/', CUSTOM_DOMAIN_BASE_PATH), '/');
+  assert.equal(withBasePath('/kundli', CUSTOM_DOMAIN_BASE_PATH), '/kundli');
+  assert.equal(stripBasePath('/kundli/', CUSTOM_DOMAIN_BASE_PATH), '/kundli');
+  assert.equal(
+    resolveGitHubPagesRedirect('?p=%2Fkundli&q=ref%3Dshare', '#top', CUSTOM_DOMAIN_BASE_PATH),
+    '/kundli?ref=share#top',
+  );
 });
 
 test('SPA route parser handles /jyotishsetu/ prefixed and relative routes across all pages including Muhurat', () => {
@@ -240,6 +259,13 @@ test('SPA route parser handles /jyotishsetu/ prefixed and relative routes across
   assert.deepEqual(parseRoute('/jyotishsetu/terms'), { kind: 'terms' });
   assert.deepEqual(parseRoute('/jyotishsetu/disclaimer'), { kind: 'disclaimer' });
   assert.deepEqual(parseRoute('/jyotishsetu/nonexistent-page'), { kind: 'home' });
+
+  // Planned future custom-domain root route parsing
+  assert.deepEqual(parseRoute('/tools/mangal-dosha', CUSTOM_DOMAIN_BASE_PATH), {
+    kind: 'tools',
+    toolSlug: 'mangal-dosha',
+  });
+  assert.deepEqual(parseRoute('/matching', CUSTOM_DOMAIN_BASE_PATH), { kind: 'matching' });
 
   assert.equal(getActiveNavKey({ kind: 'tools', toolSlug: 'muhurat' }), 'tools');
   assert.equal(getActiveNavKey({ kind: 'horoscope', sign: 'mesha' }), 'horoscope');
@@ -1765,6 +1791,167 @@ test('Birthplace Regression 3: Kundli Matching clears stale pair results when ei
   assert.equal(payloadB.resolved.displayName, 'Sivasagar, Assam, India');
   const match = computeAshtakoota(payloadA.input, payloadB.input);
   assert.ok(match.totalScore >= 0 && match.totalScore <= 36);
+});
+
+test('Birthplace Regression 4: Custom coordinates with N/S/E/W suffixes, numeric storage, and IANA timezone normalization (Nalbari & Barpeta Kundli Matching)', () => {
+  // Exact reproduction reported for Partner A (Nalbari) & Partner B (Barpeta)
+  const partnerASelection = createCustomBirthplace(
+    {
+      placeName: 'Nalbari',
+      state: 'Assam',
+      country: 'India',
+      latValue: '26.4429 N',
+      latDir: 'N',
+      lonValue: '91.4410 E',
+      lonDir: 'E',
+      ianaTimeZone: 'kolkata',
+    },
+    'varanasi',
+  );
+
+  // Normalized custom fields: clean text, numeric decimal degrees, canonical Asia/Kolkata timezone
+  assert.equal(partnerASelection.custom.latValue, '26.4429');
+  assert.equal(partnerASelection.custom.latDir, 'N');
+  assert.equal(partnerASelection.custom.latitude, 26.4429);
+  assert.equal(partnerASelection.custom.lonValue, '91.4410');
+  assert.equal(partnerASelection.custom.lonDir, 'E');
+  assert.equal(partnerASelection.custom.longitude, 91.441);
+  assert.equal(partnerASelection.custom.ianaTimeZone, 'Asia/Kolkata');
+
+  const partnerBSelection = createCustomBirthplace(
+    {
+      placeName: 'Barpeta',
+      state: 'Assam',
+      country: 'India',
+      latValue: ' 26.330421° N ',
+      latDir: 'S', // deliberate opposite default to verify explicit N overrides it
+      lonValue: ' 91.004051 E ',
+      lonDir: 'W', // deliberate opposite default to verify explicit E overrides it
+      ianaTimeZone: 'Kolkata',
+    },
+    'guwahati',
+  );
+
+  assert.equal(partnerBSelection.custom.latValue, '26.330421');
+  assert.equal(partnerBSelection.custom.latDir, 'N');
+  assert.equal(partnerBSelection.custom.latitude, 26.330421);
+  assert.equal(partnerBSelection.custom.lonValue, '91.004051');
+  assert.equal(partnerBSelection.custom.lonDir, 'E');
+  assert.equal(partnerBSelection.custom.longitude, 91.004051);
+  assert.equal(partnerBSelection.custom.ianaTimeZone, 'Asia/Kolkata');
+
+  // Also test raw un-normalized state (e.g., pasted directly before field cleanup) passes validator
+  const rawPartnerA = {
+    mode: 'custom' as const,
+    presetCityId: 'varanasi' as const,
+    custom: {
+      placeName: 'Nalbari',
+      district: '',
+      state: 'Assam',
+      country: 'India',
+      latValue: '26.4429 N',
+      latDir: 'N' as const,
+      lonValue: '91.4410 E',
+      lonDir: 'E' as const,
+      ianaTimeZone: 'Asia/Kolkata',
+    },
+  };
+  const rawValA = validateBirthplaceSelection(rawPartnerA, '1994-08-21', '07:15', 'en');
+  assert.equal(rawValA.valid, true);
+  assert.deepEqual(rawValA.errors, {});
+  assert.ok(rawValA.resolved);
+  assert.equal(rawValA.resolved.mode, 'custom');
+  assert.equal(rawValA.resolved.presetCityId, null);
+  assert.equal(rawValA.resolved.displayName, 'Nalbari, Assam, India');
+  assert.equal(rawValA.resolved.lat, 26.4429);
+  assert.equal(rawValA.resolved.lon, 91.441);
+  assert.equal(rawValA.resolved.ianaTimeZone, 'Asia/Kolkata');
+  assert.equal(rawValA.resolved.utcOffsetMinutes, 330);
+  assert.equal(rawValA.resolved.coordinatesLabel, '26.4429° N, 91.4410° E');
+
+  const formA = createDefaultBirthFormState({
+    name: 'Partner A',
+    dateStr: '1994-08-21',
+    timeStr: '07:15',
+    birthplace: partnerASelection,
+  });
+  const formB = createDefaultBirthFormState({
+    name: 'Partner B',
+    dateStr: '1996-11-04',
+    timeStr: '14:40',
+    birthplace: partnerBSelection,
+  });
+
+  const payloadA = buildValidatedCalculationPayload(formA, 'en');
+  const payloadB = buildValidatedCalculationPayload(formB, 'en');
+  assert.ok(payloadA, 'Partner A (Nalbari) must produce a valid calculation payload');
+  assert.ok(payloadB, 'Partner B (Barpeta) must produce a valid calculation payload');
+
+  assert.equal(payloadA.resolved.mode, 'custom');
+  assert.equal(payloadA.resolved.presetCityId, null);
+  assert.equal(payloadA.resolved.displayName, 'Nalbari, Assam, India');
+  assert.equal(payloadA.resolved.ianaTimeZone, 'Asia/Kolkata');
+  assert.equal(payloadA.input.lat, 26.4429);
+  assert.equal(payloadA.input.lon, 91.441);
+  assert.equal(payloadA.input.utcOffsetMinutes, 330);
+  assert.equal(
+    assertBirthplaceMatchesCalculation(payloadA.selection, payloadA.resolved, payloadA.input),
+    true,
+  );
+
+  assert.equal(payloadB.resolved.mode, 'custom');
+  assert.equal(payloadB.resolved.presetCityId, null);
+  assert.equal(payloadB.resolved.displayName, 'Barpeta, Assam, India');
+  assert.equal(payloadB.resolved.ianaTimeZone, 'Asia/Kolkata');
+  assert.equal(payloadB.input.lat, 26.330421);
+  assert.equal(payloadB.input.lon, 91.004051);
+  assert.equal(payloadB.input.utcOffsetMinutes, 330);
+  assert.equal(
+    assertBirthplaceMatchesCalculation(payloadB.selection, payloadB.resolved, payloadB.input),
+    true,
+  );
+
+  // Full Ashtakoota matching succeeds with exact custom partner coordinates
+  const match = computeAshtakoota(payloadA.input, payloadB.input);
+  assert.equal(match.kootas.length, 8);
+  assert.ok(match.totalScore >= 0 && match.totalScore <= 36);
+
+  // Hemisphere sign rules: N/E positive, S/W negative
+  assert.equal(parseSignedCoordinate('26.4429 N', 'S', 'lat'), 26.4429);
+  assert.equal(parseSignedCoordinate('91.4410 E', 'W', 'lon'), 91.441);
+  assert.equal(parseSignedCoordinate('33.8688 S', 'N', 'lat'), -33.8688);
+  assert.equal(parseSignedCoordinate('58.3816 W', 'E', 'lon'), -58.3816);
+  assert.equal(parseSignedCoordinate('-33.8688', 'N', 'lat'), -33.8688);
+  assert.equal(parseSignedCoordinate('−58.3816', 'E', 'lon'), -58.3816);
+  assert.equal(parseSignedCoordinate('-33.8688 S', 'S', 'lat'), -33.8688);
+
+  // Wrong-axis hemisphere letters & contradictory signs must be rejected cleanly
+  assert.equal(parseCoordinateInput('26.4429 E', 'N', 'lat'), null);
+  assert.equal(parseCoordinateInput('91.4410 N', 'E', 'lon'), null);
+  assert.equal(parseCoordinateInput('-26.4429 N', 'N', 'lat'), null);
+  assert.equal(parseCoordinateInput('+33.8688 S', 'S', 'lat'), null);
+
+  // Timezone normalization to canonical IANA identifiers (never storing Kolkata/kolkata)
+  assert.equal(normalizeIanaTimeZone('kolkata'), 'Asia/Kolkata');
+  assert.equal(normalizeIanaTimeZone('Kolkata'), 'Asia/Kolkata');
+  assert.equal(normalizeIanaTimeZone('asia/kolkata'), 'Asia/Kolkata');
+  assert.equal(normalizeIanaTimeZone('Asia/Calcutta'), 'Asia/Kolkata');
+  assert.equal(normalizeIanaTimeZone('IST'), 'Asia/Kolkata');
+  assert.equal(normalizeIanaTimeZone('London'), 'Europe/London');
+  assert.equal(normalizeIanaTimeZone('Sydney'), 'Australia/Sydney');
+  assert.equal(normalizeIanaTimeZone('Mars/Olympus_Mons'), 'Mars/Olympus_Mons');
+
+  // Invalid timezone still rejected and never falls back to Guwahati
+  const invalidTzSel = createCustomBirthplace({
+    placeName: 'Nalbari',
+    latValue: '26.4429 N',
+    lonValue: '91.4410 E',
+    ianaTimeZone: 'Mars/Olympus_Mons',
+  });
+  const invalidTzRes = validateBirthplaceSelection(invalidTzSel, '1994-08-21', '07:15', 'en');
+  assert.equal(invalidTzRes.valid, false);
+  assert.equal(invalidTzRes.errors.timezoneInvalid, true);
+  assert.equal(invalidTzRes.resolved, null);
 });
 
 

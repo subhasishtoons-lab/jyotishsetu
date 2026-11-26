@@ -20,6 +20,10 @@ export interface CustomBirthplaceFields {
   latDir: LatHemisphere;
   lonValue: string;
   lonDir: LonHemisphere;
+  /** Canonical signed numeric decimal degrees (positive N/E, negative S/W), or null when incomplete/invalid */
+  latitude?: number | null;
+  /** Canonical signed numeric decimal degrees (positive N/E, negative S/W), or null when incomplete/invalid */
+  longitude?: number | null;
   ianaTimeZone: string;
 }
 
@@ -174,21 +178,224 @@ export function getAvailableIanaTimeZones(): readonly CuratedTimeZoneOption[] {
   return combined;
 }
 
+const TIMEZONE_ALIASES: Record<string, string> = {
+  kolkata: 'Asia/Kolkata',
+  calcutta: 'Asia/Kolkata',
+  'asia/kolkata': 'Asia/Kolkata',
+  'asia/calcutta': 'Asia/Kolkata',
+  ist: 'Asia/Kolkata',
+  india: 'Asia/Kolkata',
+  'india standard time': 'Asia/Kolkata',
+  utc: 'UTC',
+  gmt: 'UTC',
+  'etc/utc': 'UTC',
+  'etc/gmt': 'UTC',
+};
+
+/**
+ * Normalizes a timezone string or common alias (e.g. "Kolkata", "kolkata", "IST",
+ * "Asia/Calcutta", "asia/kolkata", "London") into its canonical IANA identifier
+ * (e.g. "Asia/Kolkata", "Europe/London"). Returns the trimmed input unchanged if
+ * it does not match a valid IANA timezone so invalid values are still rejected.
+ */
+export function normalizeIanaTimeZone(raw: string): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+
+  const lower = trimmed.toLowerCase();
+  if (TIMEZONE_ALIASES[lower]) {
+    return TIMEZONE_ALIASES[lower];
+  }
+
+  const allZones = getAvailableIanaTimeZones();
+
+  // Exact case-insensitive IANA identifier match
+  const exactMatch = allZones.find((tz) => tz.iana.toLowerCase() === lower);
+  if (exactMatch) {
+    return exactMatch.iana;
+  }
+
+  // Unique city-segment match (e.g. "sydney" -> "Australia/Sydney", "new york" -> "America/New_York")
+  const normalizedToken = lower.replace(/\s+/g, '_');
+  const cityMatches = allZones.filter((tz) => {
+    const slashIdx = tz.iana.lastIndexOf('/');
+    const cityPart = (slashIdx >= 0 ? tz.iana.slice(slashIdx + 1) : tz.iana).toLowerCase();
+    return cityPart === normalizedToken;
+  });
+  if (cityMatches.length === 1) {
+    return cityMatches[0].iana;
+  }
+
+  return trimmed;
+}
+
 export function isValidIanaTimeZone(tz: string): boolean {
-  const trimmed = (tz || '').trim();
-  if (!trimmed) return false;
+  const normalized = normalizeIanaTimeZone(tz);
+  if (!normalized) return false;
+  // Require canonical IANA identifier form (either UTC or Region/Locality), never bare city aliases
+  if (normalized !== 'UTC' && !normalized.includes('/')) {
+    return false;
+  }
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: trimmed });
+    new Intl.DateTimeFormat('en-US', { timeZone: normalized });
     return true;
   } catch {
     return false;
   }
 }
 
+export interface ParsedCoordinateInput {
+  /** Signed numeric decimal degrees (positive for N/E, negative for S/W) */
+  value: number;
+  /** Clean unsigned decimal string (e.g. "26.4429") */
+  cleanedText: string;
+  /** Resolved hemisphere ('N' | 'S' for latitude, 'E' | 'W' for longitude) */
+  hemisphere: LatHemisphere | LonHemisphere;
+  /** True when the raw text explicitly carried a +/- sign or N/S/E/W hemisphere letter */
+  hasExplicitHemisphere: boolean;
+}
+
+/**
+ * Parses a decimal-degree coordinate string with optional whitespace, degree symbol (°/º),
+ * leading +/- sign (including Unicode minus −), and leading or trailing hemisphere indicator (N/S/E/W).
+ * - N / E resolve to positive decimal degrees; S / W resolve to negative decimal degrees.
+ * - Rejects wrong-axis hemisphere letters (e.g. 'E' in latitude or 'N' in longitude) and contradictory signs.
+ * - Returns `null` on empty or malformed input (never substitutes a default city).
+ */
+export function parseCoordinateInput(
+  raw: string,
+  defaultHemisphere: LatHemisphere | LonHemisphere,
+  axis?: 'lat' | 'lon',
+): ParsedCoordinateInput | null {
+  const resolvedAxis: 'lat' | 'lon' =
+    axis ?? (defaultHemisphere === 'N' || defaultHemisphere === 'S' ? 'lat' : 'lon');
+  const trimmed = (raw ?? '')
+    .replace(/[\u2212\u2013\u2014]/g, '-')
+    .trim();
+  if (!trimmed) return null;
+
+  const match =
+    /^(?:([NSEW])\s*)?([+-])?\s*(\d+(?:\.\d*)?|\.\d+)\s*(?:[°º])?\s*(?:([NSEW]))?$/i.exec(
+      trimmed,
+    );
+  if (!match) return null;
+
+  const [, leadHem, sign, numStr, trailHem] = match;
+  if (leadHem && trailHem) return null;
+
+  const explicitHem = (leadHem || trailHem)?.toUpperCase() as
+    | LatHemisphere
+    | LonHemisphere
+    | undefined;
+
+  if (explicitHem) {
+    if (resolvedAxis === 'lat' && explicitHem !== 'N' && explicitHem !== 'S') {
+      return null;
+    }
+    if (resolvedAxis === 'lon' && explicitHem !== 'E' && explicitHem !== 'W') {
+      return null;
+    }
+  }
+
+  // Reject contradictory sign + explicit hemisphere (e.g. "-26.4429 N" or "+33.8688 S")
+  if (sign === '-' && (explicitHem === 'N' || explicitHem === 'E')) return null;
+  if (sign === '+' && (explicitHem === 'S' || explicitHem === 'W')) return null;
+
+  const magnitude = Number(numStr);
+  if (!Number.isFinite(magnitude)) return null;
+
+  let resolvedHemisphere: LatHemisphere | LonHemisphere;
+  if (explicitHem) {
+    resolvedHemisphere = explicitHem;
+  } else if (sign === '-') {
+    resolvedHemisphere = resolvedAxis === 'lat' ? 'S' : 'W';
+  } else if (sign === '+') {
+    resolvedHemisphere = resolvedAxis === 'lat' ? 'N' : 'E';
+  } else {
+    resolvedHemisphere = defaultHemisphere;
+  }
+
+  const signedValue =
+    magnitude === 0
+      ? 0
+      : resolvedHemisphere === 'S' || resolvedHemisphere === 'W'
+        ? -magnitude
+        : magnitude;
+
+  return {
+    value: signedValue,
+    cleanedText: numStr,
+    hemisphere: resolvedHemisphere,
+    hasExplicitHemisphere: Boolean(explicitHem || sign),
+  };
+}
+
+function normalizeCustomBirthplaceFields(
+  fields: CustomBirthplaceFields,
+): CustomBirthplaceFields {
+  const latParsed = parseCoordinateInput(fields.latValue, fields.latDir, 'lat');
+  const lonParsed = parseCoordinateInput(fields.lonValue, fields.lonDir, 'lon');
+
+  let latValue = fields.latValue;
+  let latDir = fields.latDir;
+  let latitude: number | null = null;
+
+  if (latParsed) {
+    if (latParsed.hasExplicitHemisphere || /[°º]/.test(fields.latValue)) {
+      latValue = latParsed.cleanedText;
+      latDir = latParsed.hemisphere as LatHemisphere;
+    }
+    latitude = latParsed.value >= -90 && latParsed.value <= 90 ? latParsed.value : null;
+  } else if (
+    !fields.latValue.trim() &&
+    typeof fields.latitude === 'number' &&
+    Number.isFinite(fields.latitude) &&
+    fields.latitude >= -90 &&
+    fields.latitude <= 90
+  ) {
+    latitude = fields.latitude === 0 ? 0 : fields.latitude;
+    latDir = latitude < 0 ? 'S' : 'N';
+    latValue = String(Math.abs(latitude));
+  }
+
+  let lonValue = fields.lonValue;
+  let lonDir = fields.lonDir;
+  let longitude: number | null = null;
+
+  if (lonParsed) {
+    if (lonParsed.hasExplicitHemisphere || /[°º]/.test(fields.lonValue)) {
+      lonValue = lonParsed.cleanedText;
+      lonDir = lonParsed.hemisphere as LonHemisphere;
+    }
+    longitude = lonParsed.value >= -180 && lonParsed.value <= 180 ? lonParsed.value : null;
+  } else if (
+    !fields.lonValue.trim() &&
+    typeof fields.longitude === 'number' &&
+    Number.isFinite(fields.longitude) &&
+    fields.longitude >= -180 &&
+    fields.longitude <= 180
+  ) {
+    longitude = fields.longitude === 0 ? 0 : fields.longitude;
+    lonDir = longitude < 0 ? 'W' : 'E';
+    lonValue = String(Math.abs(longitude));
+  }
+
+  return {
+    ...fields,
+    latValue,
+    latDir,
+    lonValue,
+    lonDir,
+    latitude,
+    longitude,
+    ianaTimeZone: normalizeIanaTimeZone(fields.ianaTimeZone),
+  };
+}
+
 export function createEmptyCustomBirthplace(
   overrides: Partial<CustomBirthplaceFields> = {},
 ): CustomBirthplaceFields {
-  return {
+  return normalizeCustomBirthplaceFields({
     placeName: '',
     district: '',
     state: '',
@@ -197,9 +404,11 @@ export function createEmptyCustomBirthplace(
     latDir: 'N',
     lonValue: '',
     lonDir: 'E',
+    latitude: null,
+    longitude: null,
     ianaTimeZone: 'Asia/Kolkata',
     ...overrides,
-  };
+  });
 }
 
 export function createPresetBirthplace(
@@ -247,6 +456,8 @@ export function areBirthplaceSelectionsEqual(
     ca.latDir === cb.latDir &&
     ca.lonValue === cb.lonValue &&
     ca.lonDir === cb.lonDir &&
+    (ca.latitude ?? null) === (cb.latitude ?? null) &&
+    (ca.longitude ?? null) === (cb.longitude ?? null) &&
     ca.ianaTimeZone === cb.ianaTimeZone
   );
 }
@@ -273,7 +484,13 @@ export function assertBirthplaceMatchesCalculation(
   calcCoords: { lat: number; lon: number; utcOffsetMinutes: number },
 ): boolean {
   if (selection.mode !== resolved.mode) return false;
-  if (selection.mode === 'custom' && resolved.presetCityId !== null) return false;
+  if (selection.mode === 'custom') {
+    if (resolved.presetCityId !== null) return false;
+    const expectedTz = normalizeIanaTimeZone(selection.custom.ianaTimeZone);
+    if (!isValidIanaTimeZone(expectedTz) || resolved.ianaTimeZone !== expectedTz) {
+      return false;
+    }
+  }
   if (selection.mode === 'preset' && resolved.presetCityId !== selection.presetCityId) {
     return false;
   }
@@ -287,7 +504,8 @@ export function assertBirthplaceMatchesCalculation(
 }
 
 /**
- * Parses a decimal coordinate string with hemisphere indicator (N/S or E/W).
+ * Parses a decimal coordinate string with hemisphere indicator (N/S or E/W),
+ * supporting optional whitespace, degree symbols (°), +/- signs, and inline hemisphere letters.
  * - Empty or non-numeric input returns `null` (never substitutes a default city).
  * - If user enters a leading negative sign (e.g. "-33.8688"), the negative sign is honoured
  *   directly without double-negating even if hemisphere is 'S' or 'W'.
@@ -295,18 +513,10 @@ export function assertBirthplaceMatchesCalculation(
 export function parseSignedCoordinate(
   raw: string,
   hemisphere: LatHemisphere | LonHemisphere,
+  axis?: 'lat' | 'lon',
 ): number | null {
-  const trimmed = (raw ?? '').trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) return null;
-
-  if (trimmed.startsWith('-')) {
-    return parsed;
-  }
-  const abs = Math.abs(parsed);
-  if (abs === 0) return 0;
-  return hemisphere === 'S' || hemisphere === 'W' ? -abs : abs;
+  const parsed = parseCoordinateInput(raw, hemisphere, axis);
+  return parsed ? parsed.value : null;
 }
 
 export function formatCoordinatesLabel(lat: number, lon: number, decimals: number = 4): string {
@@ -459,21 +669,40 @@ export function validateBirthplaceSelection(
   const latRaw = (custom.latValue ?? '').trim();
   const lonRaw = (custom.lonValue ?? '').trim();
 
-  const parsedLat = parseSignedCoordinate(latRaw, custom.latDir);
-  if (!latRaw) {
+  const parsedLatFromText = parseSignedCoordinate(latRaw, custom.latDir, 'lat');
+  const parsedLat =
+    parsedLatFromText !== null
+      ? parsedLatFromText
+      : !latRaw && typeof custom.latitude === 'number' && Number.isFinite(custom.latitude)
+        ? custom.latitude === 0
+          ? 0
+          : custom.latitude
+        : null;
+
+  if (!latRaw && parsedLat === null) {
     errors.latMissing = true;
   } else if (parsedLat === null || parsedLat < -90 || parsedLat > 90) {
     errors.latInvalid = true;
   }
 
-  const parsedLon = parseSignedCoordinate(lonRaw, custom.lonDir);
-  if (!lonRaw) {
+  const parsedLonFromText = parseSignedCoordinate(lonRaw, custom.lonDir, 'lon');
+  const parsedLon =
+    parsedLonFromText !== null
+      ? parsedLonFromText
+      : !lonRaw && typeof custom.longitude === 'number' && Number.isFinite(custom.longitude)
+        ? custom.longitude === 0
+          ? 0
+          : custom.longitude
+        : null;
+
+  if (!lonRaw && parsedLon === null) {
     errors.lonMissing = true;
   } else if (parsedLon === null || parsedLon < -180 || parsedLon > 180) {
     errors.lonInvalid = true;
   }
 
-  const tzValid = isValidIanaTimeZone(custom.ianaTimeZone);
+  const normalizedTimeZone = normalizeIanaTimeZone(custom.ianaTimeZone);
+  const tzValid = isValidIanaTimeZone(normalizedTimeZone);
   if (!tzValid) {
     errors.timezoneInvalid = true;
   }
@@ -484,15 +713,15 @@ export function validateBirthplaceSelection(
   }
 
   const { offsetMinutes, isHistoricalLmt } = resolveIanaUtcOffsetMinutes(
-    custom.ianaTimeZone,
+    normalizedTimeZone,
     dateStr,
     timeStr,
     parsedLon,
   );
   const utcStr = formatUtcOffsetLabel(offsetMinutes);
   const timezoneLabel = isHistoricalLmt
-    ? `${custom.ianaTimeZone} (LMT ${utcStr})`
-    : `${custom.ianaTimeZone} (${utcStr})`;
+    ? `${normalizedTimeZone} (LMT ${utcStr})`
+    : `${normalizedTimeZone} (${utcStr})`;
 
   const displayName = formatCustomPlaceName(custom);
 
@@ -507,7 +736,7 @@ export function validateBirthplaceSelection(
       lat: parsedLat,
       lon: parsedLon,
       coordinatesLabel: formatCoordinatesLabel(parsedLat, parsedLon, 4),
-      ianaTimeZone: custom.ianaTimeZone.trim(),
+      ianaTimeZone: normalizedTimeZone,
       utcOffsetMinutes: offsetMinutes,
       timezoneLabel,
       isHistoricalLmt,

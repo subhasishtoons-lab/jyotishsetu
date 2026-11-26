@@ -43,7 +43,8 @@
     </script>
 
     <script>
-      // Restore the original route after the GitHub Pages SPA fallback.
+      // Restore the original route after the GitHub Pages 404.html SPA fallback.
+      // %BASE_URL% is replaced by Vite ('/jyotishsetu/' for GitHub Pages, '/' for a future custom domain).
       (function () {
         var search = window.location.search;
         if (!search || search.indexOf('p=') === -1) return;
@@ -53,14 +54,26 @@
           var rawPath = params.get('p');
           if (!rawPath) return;
 
+          var baseUrl = '%BASE_URL%';
+          var base = baseUrl.replace(/\/+$/, '');
           var cleanPath = rawPath.charAt(0) === '/' ? rawPath : '/' + rawPath;
+
+          if (base && (cleanPath === base || cleanPath.indexOf(base + '/') === 0)) {
+            cleanPath = cleanPath.slice(base.length) || '/';
+          }
+
+          var targetPath = base
+            ? cleanPath === '/'
+              ? base + '/'
+              : base + cleanPath
+            : cleanPath;
           var rawQuery = params.get('q');
           var queryPart = rawQuery ? '?' + rawQuery : '';
 
           window.history.replaceState(
             null,
             '',
-            cleanPath + queryPart + (window.location.hash || '')
+            targetPath + queryPart + (window.location.hash || '')
           );
         } catch (e) {
           // Ignore malformed redirect queries.
